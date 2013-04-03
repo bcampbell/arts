@@ -46,6 +46,11 @@ func main() {
 		panic(err)
 	}
 
+    if response.StatusCode != 200 {
+        fmt.Printf("Request failed: %s\n", response.Status)
+        os.Exit(1)
+    }
+
 	foo, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		panic(err)

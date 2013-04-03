@@ -1,39 +1,21 @@
 package main
 
 import (
-	"code.google.com/p/go.net/html"
+//	"code.google.com/p/go.net/html"
 	"code.google.com/p/go.net/html/atom"
-	"fmt"
+//	"fmt"
 	"github.com/matrixik/goquery"
 	"regexp"
 	"sort"
 	"strings"
 )
 
-type Candidate struct {
-	node  *html.Node
-	txt   string
-	score int
-}
-type Candidates []Candidate
 
-func (s Candidates) Len() int           { return len(s) }
-func (s Candidates) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s Candidates) Less(i, j int) bool { return s[i].score < s[j].score }
-
-type Reverse struct {
-	sort.Interface
-}
-
-func (r Reverse) Less(i, j int) bool {
-	return r.Interface.Less(j, i)
-}
 
 
 func extract_headline(doc *goquery.Document, art_url string) string {
 
-	var candidates Candidates
-
+    var candidates = make(Candidates, 0, 100)
 
 	indicative := regexp.MustCompile(`(?i)entry-title|headline|title`)
 
@@ -48,12 +30,11 @@ func extract_headline(doc *goquery.Document, art_url string) string {
 
     // TODO: early-out on hatom or schema.org article
     // but not opengraph og:title (eg telegraph appends " - Telegraph",
-    // rolling stone does similar others are bould to)
+    // rolling stone does similar, others are bound to too)
 
 	doc.Find("h1,h2,h3,h4,h5,h6,div,span,th,td").Each(func(i int, s *goquery.Selection) {
 		//doc.Find("h1,h2,h3,h4,h5,h6").Each(func(i int, s *goquery.Selection) {
 
-		var score int = 0
 		txt := compressSpace(s.Text())
 		if len(txt) >= 500 {
 			return // too long
@@ -61,47 +42,39 @@ func extract_headline(doc *goquery.Document, art_url string) string {
 		if len(txt) < 3 {
 			return // too short
 		}
-        cooked_txt := toAlphanumeric(txt)
-		//        fmt.Printf("%d  '%s'\n", s.Length(), txt)
 
-        dbug("check <%s> '%s'\n", s.Nodes[0].DataAtom.String(), txt)
+        cooked_txt := toAlphanumeric(txt)
+
+        c := Candidate{s.Nodes[0], txt, 0, []Score{}}
 
 		// TEST: is it a headliney element?
 		tag := s.Nodes[0].DataAtom
 		if tag == atom.H1 || tag == atom.H2 || tag == atom.H3 || tag == atom.H4 {
-			score += 2
-			dbug("  +2 headliney\n")
+			c.addScore(2,"headliney")
 		}
 		if tag == atom.Span || tag == atom.Td {
-			score -= 2
-			dbug("  -2 not headliney\n")
+			c.addScore(-2,"not headliney")
 		}
 
 		// TEST: likely-looking class or id?
 		cls, foo := s.Attr("class")
 		if foo && (indicative.FindStringIndex(cls) != nil) {
-			//logging.debug("  likely class")
-			score += 2
-			dbug("  +2 indicative class\n")
+			c.addScore(2,"indicative class")
 		}
 
 		id, foo := s.Attr("id")
 		if foo && (indicative.FindStringIndex(id) != nil) {
-			//logging.debug("  likely id")
-			score += 2
-			dbug("  +2 indicative id\n")
+			c.addScore(2,"indicative id")
 		}
 
 		// TEST: appears in page <title>?
 		if strings.Contains(cooked_title, cooked_txt) {
-			score += 3
-			dbug("  +3 appears in <title>\n")
+			c.addScore(3,"appears in <title>")
 		}
 
         // TEST: appears in og:title?
         if strings.Contains(cooked_og_title, cooked_txt) {
-			score += 3
-			dbug("  +3 appears in og:title\n")
+			c.addScore(3,"appears in og:title")
         }
 
         // TEST: appears in slug?
@@ -116,8 +89,7 @@ func extract_headline(doc *goquery.Document, art_url string) string {
                 }
                 var value int = (5*matches) / len(parts)
                 if value > 0  {
-                    score += value
-                    dbug("  +%d match slug", value)
+                    c.addScore(value, "match slug")
                 }
             }
         }
@@ -125,12 +97,20 @@ func extract_headline(doc *goquery.Document, art_url string) string {
 		// TODO:
 		// TEST: does it appear in likely looking <meta> tags? "Headline" etc...
 
-		candidates = append(candidates, Candidate{s.Nodes[0], txt, score})
+        // IDEAS:
+        //  penalise if within <aside> block or obvious sidebar
+        //  promote if within <article> <header>?
+
+		candidates = append(candidates, c)
 	})
 
 	sort.Sort(Reverse{candidates})
-	fmt.Printf("CANDIDATES:\n %v\n", candidates[0:5])
 
-	return candidates[0].txt
+    // show the top ten, with reasons
+    for _,c := range(candidates[0:10]) {
+        c.dump()
+    }
+
+	return candidates[0].Txt
 }
 
