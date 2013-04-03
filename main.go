@@ -72,6 +72,7 @@ func extract(raw_html, art_url string) {
 
 	doc := goquery.NewDocumentFromNode(root)
 	extract_headline(doc,art_url)
+	extractAuthor(doc)
 
 }
 
