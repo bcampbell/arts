@@ -21,6 +21,10 @@ type Candidate struct {
     Scores []Score
 }
 
+func newCandidate(n *html.Node) *Candidate {
+	return &Candidate{n, "", 0, []Score{}}
+}
+
 func (c *Candidate) addScore(value int,desc string) {
     c.Scores = append(c.Scores,Score{value,desc})
     c.TotalScore += value
@@ -28,7 +32,8 @@ func (c *Candidate) addScore(value int,desc string) {
 
 // print out a candidate and the scores it received for debugging
 func (c *Candidate) dump() {
-    fmt.Printf("%d %s '%s'\n", c.TotalScore, c.Node.DataAtom.String(), c.Txt)
+	
+    fmt.Printf("%d %s '%s'\n", c.TotalScore, describeNode(c.Node), c.Txt)
     for _,s := range(c.Scores) {
         fmt.Printf("  %d %s\n", s.Value, s.Desc)
     }

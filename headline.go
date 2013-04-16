@@ -106,6 +106,10 @@ func extract_headline(doc *goquery.Document, art_url string) string {
             c.addScore(-3,"contained within #sidebar")
         }
 
+		// TEST: within article container?
+        if insideArticle(s) {
+            c.addScore(1,"within article container")
+        }
 
         // IDEAS:
         //  promote if within <article> <header>?
@@ -117,8 +121,11 @@ func extract_headline(doc *goquery.Document, art_url string) string {
 
     sort.Sort(Reverse{candidates})
     
-    fmt.Printf("%d candidates\n", len(candidates))
+    fmt.Printf("HEADLINE %d candidates\n", len(candidates))
     // show the top ten, with reasons
+	if( len(candidates)>10) {
+		candidates = candidates[0:10]
+	}
     for _,c := range(candidates) {
         c.dump()
     }

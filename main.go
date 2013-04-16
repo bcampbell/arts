@@ -74,6 +74,9 @@ func extract(raw_html, art_url string) {
 	extract_headline(doc,art_url)
 	extractAuthor(doc)
 
+	DoVoodoo(root)
+
+
 }
 
 

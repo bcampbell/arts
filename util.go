@@ -7,6 +7,7 @@ import (
     "strings"
     "code.google.com/p/go.net/html"
     "code.google.com/p/go.text/unicode/norm"
+	"github.com/matrixik/goquery"
 )
 
 // writeNodeText writes the text contained in n and its descendants to b.
@@ -85,5 +86,61 @@ func getSlug(rawurl string) string {
     }
 
     return m[0]
+}
+
+
+
+func insideArticle(s *goquery.Selection) bool {
+	if s.Closest("article, #post, .article, .story-body").Length()>0 {
+		return true
+	}
+
+
+	return false
+}
+
+
+// get the value of the attribute, or return "" if not exists
+func getAttr(n *html.Node, attr string) string {
+	for _, a := range n.Attr {
+		if a.Key == attr {
+			return a.Val
+		}
+	}
+	return ""
+}
+
+// following https://developer.mozilla.org/en-US/docs/DOM/Node.textContent
+func getTextContent(n *html.Node) string {
+	if n.Type == html.TextNode {
+		return n.Data
+	}
+	if n.Type != html.ElementNode {
+		return ""
+	}
+
+	txt := ""
+	for child := n.FirstChild; child != nil; child = child.NextSibling {
+		txt += getTextContent(child)
+	}
+
+	return txt
+}
+
+func describeNode(n *html.Node) string {
+	if n.Type == html.ElementNode {
+		desc := n.DataAtom.String()
+		id := getAttr(n,"id")
+		if id != "" {
+			desc = desc + "#" + id
+		}
+		cls := getAttr(n,"class")
+		if cls != "" {
+			desc = desc + "." + cls
+		}
+		return desc
+	}
+
+	return "???"
 }
 
