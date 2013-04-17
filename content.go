@@ -1,5 +1,8 @@
 package main
 
+// this is a direct port of arc90's readbility javascript
+// http://code.google.com/p/arc90labs-readability
+
 import (
 	"code.google.com/p/cascadia"
 	"code.google.com/p/go.net/html"
@@ -9,7 +12,7 @@ import (
 	"regexp"
 
 //	"sort"
-//	"strings"
+	"strings"
 //	"os"
 )
 
@@ -134,15 +137,44 @@ func grabArticle(root *html.Node) {
 		}
 
 
-		fmt.Printf("SOME TEXT\n'''%s'''\n", innerText)
+		contentScore := 1
 
+		// add points for any commas
+		contentScore += strings.Count(innerText,",")
+
+		// 1 point for every 100 bytes in this para, up to 3 points
+		foo := len(innerText) / 100
+		if foo > 3 {
+			foo=3
+		}
+		contentScore += foo
+
+        /* Add the content score to the parent. The grandparent gets half. */
+		candidates.get(parentNode).addScore(contentScore,"Child content")
+		if grandParentNode != nil {
+			halfScore := contentScore/2
+			if halfScore>0 {
+				candidates.get(grandParentNode).addScore(halfScore,"Child content")
+			}
+		}
 	}
 
+	/**
+	 * After we've calculated scores, loop through all of the possible candidate nodes we found
+	 * and find the one with the highest score.
+	**/
+	var topCandidate *Candidate = nil;
+	for _,c := range(candidates) {
+		if topCandidate==nil || c.TotalScore>topCandidate.TotalScore {
+			topCandidate = c
+		}
+	}
 
 	for _,candidate := range(candidates) {
 		candidate.dump()
 	}
 
+	topCandidate.dump()
 }
 
 
@@ -181,3 +213,6 @@ func getClassWeight(n *html.Node) []Score {
 
 	return scores
 }
+
+
+

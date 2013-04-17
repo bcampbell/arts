@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
     "bytes"
     "net/url"
     "regexp"
@@ -8,6 +9,7 @@ import (
     "code.google.com/p/go.net/html"
     "code.google.com/p/go.text/unicode/norm"
 	"github.com/matrixik/goquery"
+	"code.google.com/p/cascadia"
 )
 
 // writeNodeText writes the text contained in n and its descendants to b.
@@ -110,15 +112,10 @@ func getAttr(n *html.Node, attr string) string {
 	return ""
 }
 
-// following https://developer.mozilla.org/en-US/docs/DOM/Node.textContent
 func getTextContent(n *html.Node) string {
 	if n.Type == html.TextNode {
 		return n.Data
 	}
-	if n.Type != html.ElementNode {
-		return ""
-	}
-
 	txt := ""
 	for child := n.FirstChild; child != nil; child = child.NextSibling {
 		txt += getTextContent(child)
@@ -127,20 +124,50 @@ func getTextContent(n *html.Node) string {
 	return txt
 }
 
+// return a string of form: "element#id.class" (ie, in css selector form)
 func describeNode(n *html.Node) string {
-	if n.Type == html.ElementNode {
+	switch n.Type {
+	case html.ElementNode:
 		desc := n.DataAtom.String()
 		id := getAttr(n,"id")
 		if id != "" {
 			desc = desc + "#" + id
 		}
+		// TODO: handle multiple classes (eg "h1.heading.fancy")
 		cls := getAttr(n,"class")
 		if cls != "" {
 			desc = desc + "." + cls
 		}
-		return desc
+		return "<" + desc + ">"
+	case html.TextNode:
+		return "{TextNode}"
+	case html.DocumentNode:
+		return "{DocumentNode}"
+	case html.CommentNode:
+		return "{Comment}"
+	case html.DoctypeNode:
+		return "{DoctypeNode}"
+	}
+	return "???"	// not an element
+}
+
+// return the link density of the node content, in range [0..1]
+func getLinkDensity(n *html.Node) float64 {
+	textLength := len(getTextContent(n))
+	linkLength := 0
+	linkSel := cascadia.MustCompile("a")
+	for _,a := range(linkSel.MatchAll(n)) {
+		linkLength += len(getTextContent(a))
 	}
 
-	return "???"
+	return float64(linkLength) / float64(textLength)
+}
+
+// helper for debugging
+func dumpNode(n *html.Node, depth int) {
+	fmt.Printf("%s%s\n", strings.Repeat(" ", depth), describeNode(n))
+	for child:=n.FirstChild; child != nil; child=child.NextSibling {
+		dumpNode(child,depth+1)
+	}
 }
 
