@@ -22,7 +22,7 @@ type CandidateMap map[*html.Node] *Candidate
 func (candidates CandidateMap) get(n *html.Node) (*Candidate) {
 	c,ok := candidates[n]
 	if !ok {
-		c = newCandidate(n)
+		c = newCandidate(n,"")
 		candidates[n] = c
 	}
 	return c
@@ -41,8 +41,8 @@ func (cm *CandidateMap) initializeNode(node *html.Node) {
 		c.addScore(-5,"heading")
 	}
 
-	for _,score := range getClassWeight(node) {
-		c.addScore(score.Value, score.Desc)
+	if score := getClassWeight(node); score != 0 {
+		c.addScore(score, "class/id score")
 	}
 }
 
@@ -160,6 +160,14 @@ func grabArticle(root *html.Node) {
 	}
 
 	/**
+	 * Scale the final candidates score based on link density. Good content should have a
+	 * relatively small link density (5% or less) and be mostly unaffected by this operation.
+	 **/
+	for _,c := range(candidates) {
+		c.scaleScore((1-getLinkDensity(c.Node)), "link density")
+	}
+
+	/**
 	 * After we've calculated scores, loop through all of the possible candidate nodes we found
 	 * and find the one with the highest score.
 	**/
@@ -173,7 +181,7 @@ func grabArticle(root *html.Node) {
 	for _,candidate := range(candidates) {
 		candidate.dump()
 	}
-
+	fmt.Printf("best:\n")
 	topCandidate.dump()
 }
 
@@ -184,34 +192,33 @@ func grabArticle(root *html.Node) {
 /*
  * Get an elements class/id weight. Uses regular expressions to tell if this 
  * element looks good or bad.
- * returns a slice of (score,reason) pairs
 **/
-func getClassWeight(n *html.Node) []Score {
+func getClassWeight(n *html.Node) int {
 	//if(!readability.flagIsActive(readability.FLAG_WEIGHT_CLASSES)) {
 	//    return 0;
 	//}
 
-	scores := make([]Score,0,4)
+	score := 0
 
 	cls := getAttr(n,"class")
 	id := getAttr(n,"id")
 
 	/* Look for a special classname */
 	if negativePat.MatchString(cls) {
-		scores = append(scores, Score{-25,"negative class"})
+		score -= 25
 	}
 	if positivePat.MatchString(cls) {
-		scores = append(scores, Score{25,"indicative class"})
+		score += 25
 	}
 	/* Look for a special ID */
 	if negativePat.MatchString(id) {
-		scores = append(scores, Score{-25,"negative id"})
+		score -= 25
 	}
 	if positivePat.MatchString(id) {
-		scores = append(scores, Score{25,"indicative id"})
+		score += 25
 	}
 
-	return scores
+	return score
 }
 
 

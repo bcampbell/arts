@@ -13,7 +13,7 @@ import (
 
 
 func extractAuthor(doc *goquery.Document) string {
-    var candidates = make(Candidates, 0, 100)
+    var candidates = make(CandidateList, 0, 100)
 
 	// look for structured bylines first (rel-author, hcard etc...)
     doc.Find(`a[rel="author"], .author, .byline`).Each( func(i int, s *goquery.Selection) {
@@ -24,7 +24,7 @@ func extractAuthor(doc *goquery.Document) string {
         if len(txt) < 3 {
             return // too short
         }
-        c := Candidate{s.Nodes[0], txt, 0, []Score{}}
+        c := newCandidate(s.Nodes[0], txt)
 		c.addScore(2,"structured markup")
         if(c.TotalScore > 0 ) {
             candidates = append(candidates, c)

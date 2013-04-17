@@ -15,7 +15,7 @@ import (
 
 func extract_headline(doc *goquery.Document, art_url string) string {
 
-    var candidates = make(Candidates, 0, 100)
+    var candidates = make(CandidateList, 0, 100)
 
     indicative := regexp.MustCompile(`(?i)entry-title|headline|title`)
 
@@ -45,7 +45,7 @@ func extract_headline(doc *goquery.Document, art_url string) string {
 
         cooked_txt := toAlphanumeric(txt)
 
-        c := Candidate{s.Nodes[0], txt, 0, []Score{}}
+        c := newCandidate(s.Nodes[0], txt)
 
         // TEST: is it a headliney element?
         tag := s.Nodes[0].DataAtom

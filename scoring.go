@@ -18,33 +18,37 @@ type Candidate struct {
 	Node  *html.Node
 	Txt   string
 	TotalScore int
-    Scores []Score
+    Log []string
 }
 
-func newCandidate(n *html.Node) *Candidate {
-	return &Candidate{n, "", 0, []Score{}}
+func newCandidate(n *html.Node, txt string) *Candidate {
+	return &Candidate{n, txt, 0, make([]string,0,4)}
 }
 
 func (c *Candidate) addScore(value int,desc string) {
-    c.Scores = append(c.Scores,Score{value,desc})
+	c.Log = append(c.Log,fmt.Sprintf("%+d %s",value, desc))
     c.TotalScore += value
+}
+
+func (c *Candidate) scaleScore(scaleFactor float64,desc string) {
+	c.Log = append(c.Log,fmt.Sprintf("*%.3g %s",scaleFactor, desc))
+    c.TotalScore = int(float64(c.TotalScore) * scaleFactor)
 }
 
 // print out a candidate and the scores it received for debugging
 func (c *Candidate) dump() {
-	
     fmt.Printf("%d %s '%s'\n", c.TotalScore, describeNode(c.Node), c.Txt)
-    for _,s := range(c.Scores) {
-        fmt.Printf("  %d %s\n", s.Value, s.Desc)
+    for _,s := range(c.Log) {
+        fmt.Printf("  %s\n", s)
     }
 }
 
 // implements a sortable set of Candidates
-type Candidates []Candidate
+type CandidateList []*Candidate
 
-func (s Candidates) Len() int           { return len(s) }
-func (s Candidates) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s Candidates) Less(i, j int) bool { return s[i].TotalScore < s[j].TotalScore }
+func (s CandidateList) Len() int           { return len(s) }
+func (s CandidateList) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s CandidateList) Less(i, j int) bool { return s[i].TotalScore < s[j].TotalScore }
 
 
 
