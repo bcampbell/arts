@@ -17,7 +17,7 @@ type Score struct {
 type Candidate struct {
 	Node  *html.Node
 	Txt   string
-	TotalScore int
+	TotalScore float64
     Log []string
 }
 
@@ -25,19 +25,19 @@ func newCandidate(n *html.Node, txt string) *Candidate {
 	return &Candidate{n, txt, 0, make([]string,0,4)}
 }
 
-func (c *Candidate) addScore(value int,desc string) {
-	c.Log = append(c.Log,fmt.Sprintf("%+d %s",value, desc))
+func (c *Candidate) addScore(value float64,desc string) {
+	c.Log = append(c.Log,fmt.Sprintf("%+.3g %s",value, desc))
     c.TotalScore += value
 }
 
 func (c *Candidate) scaleScore(scaleFactor float64,desc string) {
 	c.Log = append(c.Log,fmt.Sprintf("*%.3g %s",scaleFactor, desc))
-    c.TotalScore = int(float64(c.TotalScore) * scaleFactor)
+    c.TotalScore *= scaleFactor
 }
 
 // print out a candidate and the scores it received for debugging
 func (c *Candidate) dump() {
-    fmt.Printf("%d %s '%s'\n", c.TotalScore, describeNode(c.Node), c.Txt)
+    fmt.Printf("%.3g %s '%s'\n", c.TotalScore, describeNode(c.Node), c.Txt)
     for _,s := range(c.Log) {
         fmt.Printf("  %s\n", s)
     }

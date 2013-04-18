@@ -93,7 +93,7 @@ func grabArticle(root *html.Node) {
 			if unlikelyCandidates.MatchString(unlikelyMatchString) == true &&
 				okMaybeItsACandidate.MatchString(unlikelyMatchString) == false &&
 				node.DataAtom != atom.Body {
-				fmt.Printf("Removing unlikely candidate - %s\n", unlikelyMatchString)
+				fmt.Printf("Removing unlikely candidate - %s\n", describeNode(node))
 				node.Parent.RemoveChild(node)
 				continue
 			}
@@ -114,6 +114,7 @@ func grabArticle(root *html.Node) {
 	 * A score is determined by things like number of commas, class names, etc. Maybe eventually link density.
 	 */
 
+	// TODO: make sure order is right, so proper scores propogate
 	for _, node := range nodesToScore {
 		parentNode := node.Parent
 		var grandParentNode *html.Node = nil
@@ -137,13 +138,13 @@ func grabArticle(root *html.Node) {
 		}
 
 
-		contentScore := 1
+		contentScore := 1.0
 
 		// add points for any commas
-		contentScore += strings.Count(innerText,",")
+		contentScore += float64(strings.Count(innerText,","))
 
 		// 1 point for every 100 bytes in this para, up to 3 points
-		foo := len(innerText) / 100
+		foo := float64(len(innerText)) / 100
 		if foo > 3 {
 			foo=3
 		}
@@ -178,6 +179,20 @@ func grabArticle(root *html.Node) {
 		}
 	}
 
+
+
+	/**
+	 * Now that we have the top candidate, look through its siblings for content that might also be related.
+	 * Things like preambles, content split by ads that we removed, etc.
+	**/
+
+//	siblingScoreThreshold := topCandidate.TotalScore
+
+
+
+
+
+
 	for _,candidate := range(candidates) {
 		candidate.dump()
 	}
@@ -193,12 +208,12 @@ func grabArticle(root *html.Node) {
  * Get an elements class/id weight. Uses regular expressions to tell if this 
  * element looks good or bad.
 **/
-func getClassWeight(n *html.Node) int {
+func getClassWeight(n *html.Node) float64 {
 	//if(!readability.flagIsActive(readability.FLAG_WEIGHT_CLASSES)) {
 	//    return 0;
 	//}
 
-	score := 0
+	score := 0.0
 
 	cls := getAttr(n,"class")
 	id := getAttr(n,"id")

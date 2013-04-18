@@ -87,7 +87,7 @@ func extract_headline(doc *goquery.Document, art_url string) string {
                         matches += 1
                     }
                 }
-                var value int = (5*matches) / len(parts)
+                var value float64 = float64(5*matches) / float64(len(parts))
                 if value > 0  {
                     c.addScore(value, "match slug")
                 }
