@@ -9,8 +9,8 @@ import (
 	"code.google.com/p/go.net/html/atom"
 	"fmt"
 	//	"github.com/matrixik/goquery"
-	"regexp"
 	"math"
+	"regexp"
 	//	"sort"
 	"strings"
 
@@ -223,26 +223,13 @@ func grabArticle(root *html.Node) {
 
 	}
 
-	//	for _, candidate := range candidates {
-	//		candidate.dump()
-	//	}
-	//	fmt.Printf("best:\n")
-	//	topCandidate.dump()
+	removeCruft(contentNodes, candidates)
+	sanitiseContent(contentNodes, candidates)
 
-
-
-	// go through and clean out any cruft
-	for _,node := range contentNodes {
-        cleanConditionally(node, "form",candidates)
-        cleanConditionally(node, "table",candidates)
-        cleanConditionally(node, "ul",candidates)
-        cleanConditionally(node, "div",candidates)
-	}
-
-	fmt.Printf("picked %d nodes:\n", len(contentNodes))
+	fmt.Printf("extracted %d nodes:\n", len(contentNodes))
 	for _, n := range contentNodes {
 		fmt.Printf("%s:\n", describeNode(n))
-		html.Render(os.Stdout,n)
+		html.Render(os.Stdout, n)
 	}
 
 }
@@ -279,74 +266,155 @@ func getClassWeight(n *html.Node) float64 {
 	return score
 }
 
-/*
- * Prepare the article nodes for display. Clean out any inline styles,
- * iframes, forms, strip extraneous <p> tags, etc.
- *
- */
-func prepArticle(articleContent []*html.Node) {
-}
+// Remove all extraneous crap in the content - related articles, share buttons etc...
+// (equivalent to prepArticle() in readbility.js)
+func removeCruft(contentNodes []*html.Node, candidates CandidateMap) {
 
-/**
- * Clean an element of all tags of type "tag" if they look fishy.
- * "Fishy" is an algorithm based on content length, classnames, link density, number of images & embeds, etc.
- **/
-func cleanConditionally(e *html.Node, tagSel string, candidates CandidateMap) {
-	sel := cascadia.MustCompile(tagSel)
-	toRemove := false
-	doomed := make([]*html.Node,0,32)
-	for _, node := range sel.MatchAll(e) {
-		weight := getClassWeight(node)
-		var contentScore float64 = 0.0
-		if c, ok := candidates[node]; ok {
-			contentScore = c.TotalScore
-		}
+	zapConditionally(contentNodes, "form", candidates)
+	zap(contentNodes, "object")
+	zap(contentNodes, "h1")
 
-		if weight+contentScore < 0 {
-			toRemove = true
-		} else {
-			textContent := getTextContent(node)
-			if strings.Count(textContent, ",") < 10 {
-				/*
-				 * If there are not very many commas, and the number of
-				 * non-paragraph elements is more than paragraphs or other ominous signs, remove the element.
-				 */
-				p := len(cascadia.MustCompile("p").MatchAll(node))
-				img := len(cascadia.MustCompile("img").MatchAll(node))
-				li := len(cascadia.MustCompile("li").MatchAll(node))
-				input := len(cascadia.MustCompile("input").MatchAll(node))
-				// XYZZY TODO: exclude videos?
-				embedCount := len(cascadia.MustCompile("embed").MatchAll(node))
-				linkDensity := getLinkDensity(node)
-
-				if  img > p  {
-                    toRemove = true
-                } else if li > p && node.DataAtom != atom.Ul && node.DataAtom != atom.Ol {
-                    toRemove = true
-                } else if input > int(math.Floor(float64(p)/3.0)) {
-                    toRemove = true
-                } else if len(textContent) < 25 && (img == 0 || img > 2) {
-                    toRemove = true
-                } else if weight < 25 && linkDensity > 0.2 {
-                    toRemove = true
-                } else if weight >= 25 && linkDensity > 0.5 {
-                    toRemove = true
-                } else if (embedCount == 1 && len(textContent) < 75) || embedCount > 1 {
-                    toRemove = true
-                }
-
-			}
-		}
-
-		if toRemove {
-			doomed = append(doomed,node)
-		}
+	// If there is only one h2, they are probably using it
+	// as a header and not a subheader, so remove it since we already have a header.
+	h2Count := 0
+	h2Sel := cascadia.MustCompile("h2")
+	for _, node := range contentNodes {
+		h2Count += len(h2Sel.MatchAll(node))
 	}
 
-	for _,n := range(doomed) {
+	if h2Count == 1 {
+		zap(contentNodes, "h2")
+	}
+	zap(contentNodes, "iframe")
+
+	//cleanHeaders()
+
+	/* Do these last as the previous stuff may have removed junk that will affect these */
+	zapConditionally(contentNodes, "table", candidates)
+	zapConditionally(contentNodes, "ul", candidates)
+	zapConditionally(contentNodes, "div", candidates)
+}
+
+func zap(contentNodes []*html.Node, tagSel string) {
+	doomed := make([]*html.Node, 0, 32)
+	sel := cascadia.MustCompile(tagSel)
+	for _, contentNode := range contentNodes {
+		for _, node := range sel.MatchAll(contentNode) {
+			// XYZZY TODO: preserve videos?
+			doomed = append(doomed, node)
+		}
+	}
+	for _, n := range doomed {
 		if n.Parent != nil {
 			n.Parent.RemoveChild(n)
 		}
 	}
+}
 
+/**
+ * Clean a set of elements, removing all matching tags if they look fishy.
+ * "Fishy" is an algorithm based on content length, classnames, link density, number of images & embeds, etc.
+ **/
+func zapConditionally(contentNodes []*html.Node, tagSel string, candidates CandidateMap) {
+
+	doomed := make([]*html.Node, 0, 32)
+	sel := cascadia.MustCompile(tagSel)
+	for _, e := range contentNodes {
+		toRemove := false
+		for _, node := range sel.MatchAll(e) {
+			weight := getClassWeight(node)
+			var contentScore float64 = 0.0
+			if c, ok := candidates[node]; ok {
+				contentScore = c.TotalScore
+			}
+
+			if weight+contentScore < 0 {
+				toRemove = true
+			} else {
+				textContent := getTextContent(node)
+				if strings.Count(textContent, ",") < 10 {
+					/*
+					 * If there are not very many commas, and the number of
+					 * non-paragraph elements is more than paragraphs or other ominous signs, remove the element.
+					 */
+					p := len(cascadia.MustCompile("p").MatchAll(node))
+					img := len(cascadia.MustCompile("img").MatchAll(node))
+					li := len(cascadia.MustCompile("li").MatchAll(node))
+					input := len(cascadia.MustCompile("input").MatchAll(node))
+					// XYZZY TODO: exclude videos?
+					embedCount := len(cascadia.MustCompile("embed").MatchAll(node))
+					linkDensity := getLinkDensity(node)
+
+					if img > p {
+						toRemove = true
+					} else if li > p && node.DataAtom != atom.Ul && node.DataAtom != atom.Ol {
+						toRemove = true
+					} else if input > int(math.Floor(float64(p)/3.0)) {
+						toRemove = true
+					} else if len(textContent) < 25 && (img == 0 || img > 2) {
+						toRemove = true
+					} else if weight < 25 && linkDensity > 0.2 {
+						toRemove = true
+					} else if weight >= 25 && linkDensity > 0.5 {
+						toRemove = true
+					} else if (embedCount == 1 && len(textContent) < 75) || embedCount > 1 {
+						toRemove = true
+					}
+
+				}
+			}
+
+			if toRemove {
+				doomed = append(doomed, node)
+			}
+		}
+	}
+
+	for _, n := range doomed {
+		if n.Parent != nil {
+			n.Parent.RemoveChild(n)
+		}
+	}
+}
+
+func filterAttrs(n *html.Node, fn func(*html.Attribute) bool) {
+	var out []html.Attribute // == nil
+	for _, a := range n.Attr {
+		if fn(&a) {
+			out = append(out, a)
+		}
+	}
+	n.Attr = out
+}
+
+// Tidy up extracted content into something that'll produce reasonable html when
+// rendered
+func sanitiseContent(contentNodes []*html.Node, candidates CandidateMap) {
+
+	var commentSel cascadia.Selector = func(n *html.Node) bool {
+		return n.Type == html.CommentNode
+	}
+	var textSel cascadia.Selector = func(n *html.Node) bool {
+		return n.Type == html.TextNode
+	}
+	var elementSel cascadia.Selector = func(n *html.Node) bool {
+		return n.Type == html.ElementNode
+	}
+
+	for _, node := range contentNodes {
+		// remove all comments
+		for _, n := range commentSel.MatchAll(node) {
+			n.Parent.RemoveChild(n)
+		}
+		// trim leading/trailing space in text
+		for _, n := range textSel.MatchAll(node) {
+			n.Data = strings.TrimSpace(n.Data)
+		}
+		// remove styles, ids and classes
+		for _, n := range elementSel.MatchAll(node) {
+			filterAttrs(n, func(attr *html.Attribute) bool {
+				return attr.Key != "style" && attr.Key != "id" && attr.Key != "class"
+			})
+		}
+	}
 }
