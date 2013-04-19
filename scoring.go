@@ -1,7 +1,6 @@
 package main
 import (
 	"fmt"
-	"sort"
 	"code.google.com/p/go.net/html"
 //	"strings"
 )
@@ -50,16 +49,22 @@ func (s CandidateList) Len() int           { return len(s) }
 func (s CandidateList) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s CandidateList) Less(i, j int) bool { return s[i].TotalScore < s[j].TotalScore }
 
+// implements a candidate map, for quick lookup by node
+type CandidateMap map[*html.Node]*Candidate
 
-
-
-// wrapper for reversing any sortable
-type Reverse struct {
-	sort.Interface
+// return an existing candidiate struct or create a blank new one
+func (candidates CandidateMap) get(n *html.Node) *Candidate {
+	c, ok := candidates[n]
+	if !ok {
+		c = newCandidate(n, "")
+		candidates[n] = c
+	}
+	return c
 }
 
-func (r Reverse) Less(i, j int) bool {
-	return r.Interface.Less(j, i)
-}
+
+
+
+
 
 

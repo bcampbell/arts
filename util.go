@@ -1,16 +1,30 @@
 package main
 
+// util.go holds generally useful stuff, mainly to do with using html.Nodes.
+// Some of this might justify a separate package...
+
 import (
 	"fmt"
     "bytes"
     "net/url"
     "regexp"
     "strings"
+	"sort"
     "code.google.com/p/go.net/html"
     "code.google.com/p/go.text/unicode/norm"
 	"github.com/matrixik/goquery"
 	"code.google.com/p/cascadia"
 )
+
+// wrapper for reversing any sortable
+type Reverse struct {
+	sort.Interface
+}
+
+func (r Reverse) Less(i, j int) bool {
+	return r.Interface.Less(j, i)
+}
+
 
 // writeNodeText writes the text contained in n and its descendants to b.
 func writeNodeText(n *html.Node, b *bytes.Buffer) {
@@ -44,9 +58,9 @@ func nodeOwnText(n *html.Node) string {
 }
 
 
-// compress all whitespace sequences (space, tabs, newlines etc) to single space
-// leading/trailing space is trimmed
-// also has the effect of converting multiline strings to oneliners
+// compressSpace reduces all whitespace sequences (space, tabs, newlines etc) in a string to a single space.
+// Leading/trailing space is trimmed.
+// Has the effect of converting multiline strings to one line.
 func compressSpace(s string) string {
     multispacePat := regexp.MustCompile(`[\s]+`)
     s = strings.TrimSpace(multispacePat.ReplaceAllLiteralString(s," "))
@@ -54,6 +68,8 @@ func compressSpace(s string) string {
 }
 
 
+// toAlphanumeric converts a utf8 string into plain ascii, alphanumeric only.
+// It tries to replace latin-alphabet accented characters with the plain-ascii bases.
 func toAlphanumeric(txt string) string {
     // convert to NFKD form
     // eg, from wikipedia:
@@ -75,6 +91,7 @@ func toAlphanumeric(txt string) string {
     return n
 }
 
+// getSlug extracts the slug part of a url, if present (else returns "")
 func getSlug(rawurl string) string {
 
     o,err := url.Parse(rawurl)
@@ -102,7 +119,8 @@ func insideArticle(s *goquery.Selection) bool {
 }
 
 
-// get the value of the attribute, or return "" if not exists
+// getAttr retrieved the value of an attribute on a node.
+// Returns empty string if attribute doesn't exist.
 func getAttr(n *html.Node, attr string) string {
 	for _, a := range n.Attr {
 		if a.Key == attr {
@@ -112,6 +130,8 @@ func getAttr(n *html.Node, attr string) string {
 	return ""
 }
 
+
+// getTextContent recursively fetches the text for a node
 func getTextContent(n *html.Node) string {
 	if n.Type == html.TextNode {
 		return n.Data
@@ -124,7 +144,23 @@ func getTextContent(n *html.Node) string {
 	return txt
 }
 
-// return a string of form: "element#id.class" (ie, in css selector form)
+
+
+// getLinkDensity calculates the ratio of link text to overall text in a node.
+// 0 means no link text, 1 means everything is link text
+func getLinkDensity(n *html.Node) float64 {
+	textLength := len(getTextContent(n))
+	linkLength := 0
+	linkSel := cascadia.MustCompile("a")
+	for _,a := range(linkSel.MatchAll(n)) {
+		linkLength += len(getTextContent(a))
+	}
+
+	return float64(linkLength) / float64(textLength)
+}
+
+// describeNode generates a debug string describing the node.
+// returns a string of form: "<element#id.class>" (ie, like a css selector)
 func describeNode(n *html.Node) string {
 	switch n.Type {
 	case html.ElementNode:
@@ -151,23 +187,11 @@ func describeNode(n *html.Node) string {
 	return "???"	// not an element
 }
 
-// return the link density of the node content, in range [0..1]
-func getLinkDensity(n *html.Node) float64 {
-	textLength := len(getTextContent(n))
-	linkLength := 0
-	linkSel := cascadia.MustCompile("a")
-	for _,a := range(linkSel.MatchAll(n)) {
-		linkLength += len(getTextContent(a))
-	}
-
-	return float64(linkLength) / float64(textLength)
-}
-
-// helper for debugging
-func dumpNode(n *html.Node, depth int) {
+// dumpTree is a debug helper to display a tree of nodes
+func dumpTree(n *html.Node, depth int) {
 	fmt.Printf("%s%s\n", strings.Repeat(" ", depth), describeNode(n))
 	for child:=n.FirstChild; child != nil; child=child.NextSibling {
-		dumpNode(child,depth+1)
+		dumpTree(child,depth+1)
 	}
 }
 

@@ -1,7 +1,14 @@
 package main
 
-// this is a direct port of arc90's readbility javascript
-// http://code.google.com/p/arc90labs-readability
+// content.go is concerned with extracting the main text content of an
+// online article.
+// It started off as a direct port of arc90's readbility javascript, to
+// the point of keeping a lot of the original comments, variable and
+// function names.
+// (see http://code.google.com/p/arc90labs-readability )
+// It diverges a little because readability is meant to be used as part of
+// a browser extension, with all the DOM structure that entails, whereas
+// this version is designed to be used on a bare parsed html.Node tree.
 
 import (
 	"code.google.com/p/cascadia"
@@ -16,21 +23,11 @@ import (
 	//	"os"
 )
 
-type CandidateMap map[*html.Node]*Candidate
 
-func (candidates CandidateMap) get(n *html.Node) *Candidate {
-	c, ok := candidates[n]
-	if !ok {
-		c = newCandidate(n, "")
-		candidates[n] = c
-	}
-	return c
-}
 
-func (cm *CandidateMap) initializeNode(node *html.Node) {
-	c := cm.get(node)
-
-	switch node.DataAtom {
+// assign initial scoring to a potential content candidate
+func initializeNode(c *Candidate) {
+	switch c.Node.DataAtom {
 	case atom.Div:
 		c.addScore(5, "<div>")
 	case atom.Pre, atom.Td, atom.Blockquote:
@@ -41,7 +38,7 @@ func (cm *CandidateMap) initializeNode(node *html.Node) {
 		c.addScore(-5, "heading")
 	}
 
-	if score := getClassWeight(node); score != 0 {
+	if score := getClassWeight(c.Node); score != 0 {
 		c.addScore(score, "class/id score")
 	}
 }
@@ -126,11 +123,11 @@ func grabArticle(root *html.Node) {
 		}
 
 		if _, exists := candidates[parentNode]; !exists {
-			candidates.initializeNode(parentNode)
+			initializeNode(candidates.get(parentNode))
 		}
 		if grandParentNode != nil {
 			if _, exists := candidates[grandParentNode]; !exists {
-				candidates.initializeNode(grandParentNode)
+				initializeNode(candidates.get(grandParentNode))
 			}
 		}
 
@@ -227,7 +224,7 @@ func grabArticle(root *html.Node) {
 
 	fmt.Printf("extracted %d nodes:\n", len(contentNodes))
 	for _, n := range contentNodes {
-		dumpNode(n, 0)
+		dumpTree(n, 0)
 		//		fmt.Printf("%s:\n", describeNode(n))
 		//		html.Render(os.Stdout, n)
 	}
