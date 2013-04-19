@@ -140,7 +140,7 @@ func describeNode(n *html.Node) string {
 		}
 		return "<" + desc + ">"
 	case html.TextNode:
-		return "{TextNode}"
+		return fmt.Sprintf("{TextNode} '%s'",n.Data)
 	case html.DocumentNode:
 		return "{DocumentNode}"
 	case html.CommentNode:

@@ -13,8 +13,7 @@ import (
 	"regexp"
 	//	"sort"
 	"strings"
-
-	"os"
+	//	"os"
 )
 
 type CandidateMap map[*html.Node]*Candidate
@@ -228,8 +227,9 @@ func grabArticle(root *html.Node) {
 
 	fmt.Printf("extracted %d nodes:\n", len(contentNodes))
 	for _, n := range contentNodes {
-		fmt.Printf("%s:\n", describeNode(n))
-		html.Render(os.Stdout, n)
+		dumpNode(n, 0)
+		//		fmt.Printf("%s:\n", describeNode(n))
+		//		html.Render(os.Stdout, n)
 	}
 
 }
@@ -389,6 +389,10 @@ func filterAttrs(n *html.Node, fn func(*html.Attribute) bool) {
 
 // Tidy up extracted content into something that'll produce reasonable html when
 // rendered
+// - remove comments
+// - trim whitespace
+// - remove non-essential attrs (TODO: still some more to do on this)
+// - TODO make links absolute
 func sanitiseContent(contentNodes []*html.Node, candidates CandidateMap) {
 
 	var commentSel cascadia.Selector = func(n *html.Node) bool {
@@ -406,9 +410,14 @@ func sanitiseContent(contentNodes []*html.Node, candidates CandidateMap) {
 		for _, n := range commentSel.MatchAll(node) {
 			n.Parent.RemoveChild(n)
 		}
-		// trim leading/trailing space in text
+		// trim leading/trailing space in text, and cull empty text nodes
 		for _, n := range textSel.MatchAll(node) {
-			n.Data = strings.TrimSpace(n.Data)
+			txt := strings.TrimSpace(n.Data)
+			if len(txt) == 0 {
+				n.Parent.RemoveChild(n)
+			} else {
+				n.Data = txt
+			}
 		}
 		// remove styles, ids and classes
 		for _, n := range elementSel.MatchAll(node) {
