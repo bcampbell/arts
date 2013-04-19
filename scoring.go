@@ -1,4 +1,7 @@
 package main
+
+// scoring.go contains helpers for rating nodes.
+
 import (
 	"fmt"
 	"code.google.com/p/go.net/html"
@@ -6,13 +9,14 @@ import (
 )
 
 
-// some points, along with the reason the points were assigned
-type Score struct {
-    Value int
-    Desc string
-}
 
-// for rating a node/text snippet
+// Candidate is for rating a node/text snippet.
+// it keeps a little log of the accumulating scoring operations to aid
+// debugging.
+// (at the end of processing, it's very useful to be able to see what
+// happened to a particular candidate along the way. Saves us the shotgun
+// approach of logging everything as it happens, then trying to read back
+// through it)
 type Candidate struct {
 	Node  *html.Node
 	Txt   string
@@ -34,7 +38,7 @@ func (c *Candidate) scaleScore(scaleFactor float64,desc string) {
     c.TotalScore *= scaleFactor
 }
 
-// print out a candidate and the scores it received for debugging
+// dump prints out a candidate and the scores it received for debugging
 func (c *Candidate) dump() {
     fmt.Printf("%.3g %s '%s'\n", c.TotalScore, describeNode(c.Node), c.Txt)
     for _,s := range(c.Log) {
@@ -42,17 +46,17 @@ func (c *Candidate) dump() {
     }
 }
 
-// implements a sortable set of Candidates
+// Candidate implements a sortable set of Candidates
 type CandidateList []*Candidate
 
 func (s CandidateList) Len() int           { return len(s) }
 func (s CandidateList) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s CandidateList) Less(i, j int) bool { return s[i].TotalScore < s[j].TotalScore }
 
-// implements a candidate map, for quick lookup by node
+// CandidateMap stores candidates for quick lookup by node
 type CandidateMap map[*html.Node]*Candidate
 
-// return an existing candidiate struct or create a blank new one
+// get returns an existing candidiate struct or create a blank new one
 func (candidates CandidateMap) get(n *html.Node) *Candidate {
 	c, ok := candidates[n]
 	if !ok {
@@ -61,9 +65,6 @@ func (candidates CandidateMap) get(n *html.Node) *Candidate {
 	}
 	return c
 }
-
-
-
 
 
 
