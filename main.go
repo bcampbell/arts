@@ -74,9 +74,18 @@ func extract(raw_html, art_url string) {
 	extract_headline(doc,art_url)
 	extractAuthor(doc)
 
-	DoVoodoo(root)
+	removeScripts(root)
+	// TODO: Turn all double br's into p's? Kill <style> tags? (see prepDocument())
+	contentNodes,contentScores := grabContent(root)
+	removeCruft(contentNodes, contentScores)
+	sanitiseContent(contentNodes)
 
-
+	fmt.Printf("extracted %d nodes:\n", len(contentNodes))
+	for _, n := range contentNodes {
+		dumpTree(n, 0)
+		//		fmt.Printf("%s:\n", describeNode(n))
+		//		html.Render(os.Stdout, n)
+	}
 }
 
 

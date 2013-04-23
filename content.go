@@ -25,6 +25,8 @@ import (
 
 
 
+
+
 // assign initial scoring to a potential content candidate
 func initializeNode(c *Candidate) {
 	switch c.Node.DataAtom {
@@ -43,12 +45,6 @@ func initializeNode(c *Candidate) {
 	}
 }
 
-func DoVoodoo(root *html.Node) {
-	removeScripts(root)
-	// TODO: Turn all double br's into p's? Kill <style> tags? (see prepDocument())
-	grabArticle(root)
-}
-
 // remove all <script> elements
 func removeScripts(root *html.Node) {
 	sel := cascadia.MustCompile("script")
@@ -63,7 +59,13 @@ var okMaybeItsACandidate = regexp.MustCompile(`(?i)and|article|body|column|main|
 var positivePat = regexp.MustCompile(`(?i)article|body|content|entry|hentry|main|page|pagination|post|text|blog|story`)
 var negativePat = regexp.MustCompile(`(?i)combx|comment|com-|contact|foot|footer|footnote|masthead|media|meta|outbrain|promo|related|scroll|shoutbox|sidebar|sponsor|shopping|tags|tool|widget`)
 
-func grabArticle(root *html.Node) {
+
+
+// grabContent finds the nodes in the page which contain the actual article text.
+// Returns a slice of node pointers (in order), and a map containing all
+// the content scores calculated. The scores can be used in a later pass to help
+// remove cruft nodes in the text (eg share/like buttons etc)
+func grabContent(root *html.Node) ([]*html.Node, CandidateMap) {
 
 	var candidates = make(CandidateMap)
 
@@ -219,16 +221,7 @@ func grabArticle(root *html.Node) {
 
 	}
 
-	removeCruft(contentNodes, candidates)
-	sanitiseContent(contentNodes, candidates)
-
-	fmt.Printf("extracted %d nodes:\n", len(contentNodes))
-	for _, n := range contentNodes {
-		dumpTree(n, 0)
-		//		fmt.Printf("%s:\n", describeNode(n))
-		//		html.Render(os.Stdout, n)
-	}
-
+	return contentNodes,candidates
 }
 
 /*
@@ -390,7 +383,7 @@ func filterAttrs(n *html.Node, fn func(*html.Attribute) bool) {
 // - trim whitespace
 // - remove non-essential attrs (TODO: still some more to do on this)
 // - TODO make links absolute
-func sanitiseContent(contentNodes []*html.Node, candidates CandidateMap) {
+func sanitiseContent(contentNodes []*html.Node) {
 
 	var commentSel cascadia.Selector = func(n *html.Node) bool {
 		return n.Type == html.CommentNode
