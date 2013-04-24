@@ -119,6 +119,29 @@ func insideArticle(s *goquery.Selection) bool {
 }
 
 
+// 
+func closest(n *html.Node, sel cascadia.Selector) *html.Node {
+	for n != nil {
+		if sel.Match(n) {
+			break
+		}
+		n = n.Parent
+	}
+	return n
+}
+
+
+// contains returns true if is a descendant of container
+func contains(container *html.Node, n *html.Node) bool {
+	n = n.Parent
+	for ; n!=nil; n=n.Parent {
+		if n==container {
+			return true
+		}
+	}
+	return false
+}
+
 // getAttr retrieved the value of an attribute on a node.
 // Returns empty string if attribute doesn't exist.
 func getAttr(n *html.Node, attr string) string {

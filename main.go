@@ -6,7 +6,7 @@ import (
 	"code.google.com/p/go.net/html"
 //	"code.google.com/p/go.net/html/atom"
 	"fmt"
-	"github.com/matrixik/goquery"
+//	"github.com/matrixik/goquery"
 	"io/ioutil"
 	"log"
 	"net/url"
@@ -70,22 +70,19 @@ func extract(raw_html, art_url string) {
 		panic(err)
 	}
 
-	doc := goquery.NewDocumentFromNode(root)
-	extract_headline(doc,art_url)
-	extractAuthor(doc)
-
+	//doc := goquery.NewDocumentFromNode(root)
 	removeScripts(root)
+	contentNodes,_ := grabContent(root)
+	//extract_headline(doc,art_url)
+	grabAuthors(root, contentNodes)
 	// TODO: Turn all double br's into p's? Kill <style> tags? (see prepDocument())
-	contentNodes,contentScores := grabContent(root)
-	removeCruft(contentNodes, contentScores)
-	sanitiseContent(contentNodes)
+//	removeCruft(contentNodes, contentScores)
+//	sanitiseContent(contentNodes)
 
-	fmt.Printf("extracted %d nodes:\n", len(contentNodes))
-	for _, n := range contentNodes {
-		dumpTree(n, 0)
-		//		fmt.Printf("%s:\n", describeNode(n))
-		//		html.Render(os.Stdout, n)
-	}
+//	fmt.Printf("extracted %d nodes:\n", len(contentNodes))
+//	for _, n := range contentNodes {
+//		dumpTree(n, 0)
+//	}
 }
 
 
