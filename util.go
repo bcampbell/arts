@@ -1,18 +1,16 @@
-package main
+package arts
 
 // util.go holds generally useful stuff, mainly to do with using html.Nodes.
 // Some of this might justify a separate package...
 
 import (
 	"fmt"
-    "bytes"
     "net/url"
     "regexp"
     "strings"
 	"sort"
     "code.google.com/p/go.net/html"
     "code.google.com/p/go.text/unicode/norm"
-	"github.com/matrixik/goquery"
 	"code.google.com/p/cascadia"
 )
 
@@ -23,38 +21,6 @@ type Reverse struct {
 
 func (r Reverse) Less(i, j int) bool {
 	return r.Interface.Less(j, i)
-}
-
-
-// writeNodeText writes the text contained in n and its descendants to b.
-func writeNodeText(n *html.Node, b *bytes.Buffer) {
-	switch n.Type {
-	case html.TextNode:
-		b.WriteString(n.Data)
-	case html.ElementNode:
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			writeNodeText(c, b)
-		}
-	}
-}
-
-// nodeText returns the text contained in n and its descendants.
-func nodeText(n *html.Node) string {
-	var b bytes.Buffer
-	writeNodeText(n, &b)
-	return b.String()
-}
-
-// nodeOwnText returns the contents of the text nodes that are direct
-// children of n.
-func nodeOwnText(n *html.Node) string {
-	var b bytes.Buffer
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if c.Type == html.TextNode {
-			b.WriteString(c.Data)
-		}
-	}
-	return b.String()
 }
 
 
@@ -108,15 +74,6 @@ func getSlug(rawurl string) string {
 }
 
 
-
-func insideArticle(s *goquery.Selection) bool {
-	if s.Closest("article, #post, .article, .story-body").Length()>0 {
-		return true
-	}
-
-
-	return false
-}
 
 
 // 
@@ -217,4 +174,7 @@ func dumpTree(n *html.Node, depth int) {
 		dumpTree(child,depth+1)
 	}
 }
+
+
+
 

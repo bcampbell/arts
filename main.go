@@ -1,88 +1,62 @@
-package main
+package arts
 
 import (
-	"net/http"
-	//    "net/http/httputil"
 	"code.google.com/p/go.net/html"
-//	"code.google.com/p/go.net/html/atom"
-	"fmt"
-//	"github.com/matrixik/goquery"
-	"io/ioutil"
-	"log"
-	"net/url"
-	"os"
-//	"regexp"
-//	"sort"
 	"strings"
+	"bytes"
+	"regexp"
 )
 
-func main() {
-	log.SetFlags(0)
 
-	if len(os.Args) != 2 {
-		fmt.Println("Usage: ", os.Args[0], "<article url>")
-		os.Exit(1)
-	}
-	proxyString := "http://localhost:3128"
-	proxyURL, err := url.Parse(proxyString)
-	if err != nil {
-		panic(err)
-	}
-	artURL := os.Args[1]
-	_, err = url.Parse(artURL)
-	if err != nil {
-		panic(err)
-	}
-
-	transport := &http.Transport{Proxy: http.ProxyURL(proxyURL)}
-	client := &http.Client{Transport: transport}
-
-	request, err := http.NewRequest("GET", artURL, nil)
-	if err != nil {
-		panic(err)
-	}
-	response, err := client.Do(request)
-	if err != nil {
-		panic(err)
-	}
-
-    if response.StatusCode != 200 {
-        fmt.Printf("Request failed: %s\n", response.Status)
-        os.Exit(1)
-    }
-
-	foo, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		panic(err)
-	}
-	raw_html := string(foo)
-	extract(raw_html,artURL)
+type Author struct {
+	Name string
+	URL string
+	Email string
+	Twitter string
 }
 
-func dbug(format string, v ...interface{}) {
-	log.Printf(format, v...)
+type Article struct {
+	Headline string
+	Authors []Author
+	Content string
+	// Pubdate
+	// Language
+	// Publication
 }
 
-func extract(raw_html, art_url string) {
+
+func Extract(raw_html, artUrl string) (*Article, error) {
 	r := strings.NewReader(raw_html)
 	root, err := html.Parse(r)
 	if err != nil {
-		panic(err)
+		return nil,err
 	}
 
-	//doc := goquery.NewDocumentFromNode(root)
+	art := &Article{}
+
 	removeScripts(root)
-	contentNodes,_ := grabContent(root)
-	//extract_headline(doc,art_url)
-	grabAuthors(root, contentNodes)
+	contentNodes,contentScores := grabContent(root)
+	art.Headline = grabHeadline(root, artUrl)
+	art.Authors = grabAuthors(root, contentNodes)
 	// TODO: Turn all double br's into p's? Kill <style> tags? (see prepDocument())
-//	removeCruft(contentNodes, contentScores)
-//	sanitiseContent(contentNodes)
+	removeCruft(contentNodes, contentScores)
+	sanitiseContent(contentNodes)
+
+	var out bytes.Buffer
+	for _,node := range contentNodes {
+		html.Render(&out,node)
+		out.WriteString("\n")
+	}
+	art.Content = out.String()
+	// cheesyness to make it a little more readable...
+	art.Content = regexp.MustCompile("(</p>)|(</div>)|(<br/>)").ReplaceAllString(art.Content,"$0\n")
+
 
 //	fmt.Printf("extracted %d nodes:\n", len(contentNodes))
 //	for _, n := range contentNodes {
 //		dumpTree(n, 0)
 //	}
+	return art,nil
 }
 
 

@@ -1,4 +1,4 @@
-package main
+package arts
 
 import (
 	"code.google.com/p/go.net/html"
@@ -13,7 +13,7 @@ import (
 
 
 
-func grabAuthors(root *html.Node, contentNodes []*html.Node) {
+func grabAuthors(root *html.Node, contentNodes []*html.Node) []Author {
     var candidates = make(CandidateList, 0, 100)
 
 	likelyElementSel := cascadia.MustCompile("a,p,span,div,li,h3,h4,h5,h6,td,strong")
@@ -124,6 +124,13 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node) {
 			}
 		}
 
+		// TODO:
+		//  test: adjacency to article content
+		//  test: adjacency to headline
+		//  test: adjacency to date
+		//  test: penalise for full sentance text
+		//  test: panalise bad urls (eg rel-tag)
+		//  test: check parent for indicative text
 
 		// TEST: likely-looking link?
 		if el.DataAtom == atom.A {
@@ -150,5 +157,7 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node) {
     for _,c := range(candidates) {
         c.dump()
     }
+
+	return make([]Author,0)
 }
 

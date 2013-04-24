@@ -1,4 +1,4 @@
-package main
+package arts
 
 // content.go is concerned with extracting the main text content of an
 // online article.

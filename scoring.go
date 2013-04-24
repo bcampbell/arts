@@ -1,4 +1,4 @@
-package main
+package arts
 
 // scoring.go contains helpers for rating nodes.
 

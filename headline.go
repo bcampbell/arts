@@ -1,7 +1,7 @@
-package main
+package arts
 
 import (
-//  "code.google.com/p/go.net/html"
+  "code.google.com/p/go.net/html"
     "code.google.com/p/go.net/html/atom"
   "fmt"
     "github.com/matrixik/goquery"
@@ -10,10 +10,11 @@ import (
     "strings"
 )
 
+// TODO: phase out goquery - just use cascadia directly
 
 
-
-func extract_headline(doc *goquery.Document, art_url string) string {
+func grabHeadline(root *html.Node, art_url string) string {
+	doc := goquery.NewDocumentFromNode(root)
 
     var candidates = make(CandidateList, 0, 100)
 
@@ -131,5 +132,13 @@ func extract_headline(doc *goquery.Document, art_url string) string {
     }
 
     return candidates[0].Txt
+}
+
+func insideArticle(s *goquery.Selection) bool {
+	if s.Closest("article, #post, .article, .story-body").Length()>0 {
+		return true
+	}
+
+	return false
 }
 
