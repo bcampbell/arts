@@ -5,6 +5,7 @@ package arts
 import (
 	"fmt"
 	"code.google.com/p/go.net/html"
+	"io"
 //	"strings"
 )
 
@@ -39,10 +40,10 @@ func (c *Candidate) scaleScore(scaleFactor float64,desc string) {
 }
 
 // dump prints out a candidate and the scores it received for debugging
-func (c *Candidate) dump() {
-    fmt.Printf("%.3g %s '%s'\n", c.TotalScore, describeNode(c.Node), c.Txt)
+func (c *Candidate) dump(out io.Writer) {
+    fmt.Fprintf(out,"%.3g %s '%s'\n", c.TotalScore, describeNode(c.Node), c.Txt)
     for _,s := range(c.Log) {
-        fmt.Printf("  %s\n", s)
+        fmt.Fprintf(out,"  %s\n", s)
     }
 }
 

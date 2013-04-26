@@ -8,12 +8,13 @@ import (
 	"code.google.com/p/cascadia"
 	"regexp"
 	"sort"
+	"io"
 //	"strings"
 )
 
 
 
-func grabAuthors(root *html.Node, contentNodes []*html.Node) []Author {
+func grabAuthors(root *html.Node, contentNodes []*html.Node, dbug io.Writer) []Author {
     var candidates = make(CandidateList, 0, 100)
 
 	likelyElementSel := cascadia.MustCompile("a,p,span,div,li,h3,h4,h5,h6,td,strong")
@@ -149,15 +150,23 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node) []Author {
 
     sort.Sort(Reverse{candidates})
 
-	fmt.Printf("AUTHOR: %d candidates\n", len(candidates))
+	fmt.Fprintf(dbug,"AUTHOR: %d candidates\n", len(candidates))
 	if( len(candidates)>10) {
 		candidates = candidates[0:10]
 	}
     // show the top ten, with reasons
     for _,c := range(candidates) {
-        c.dump()
+        c.dump(dbug)
     }
 
-	return make([]Author,0)
+	authors := make([]Author,0,4)
+    for _,c := range(candidates) {
+		if c.TotalScore>=2.0 {
+			author := Author{Name:c.Txt}
+			authors = append(authors,author)
+		}
+
+	}
+	return authors
 }
 

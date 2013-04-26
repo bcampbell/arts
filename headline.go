@@ -8,12 +8,13 @@ import (
     "regexp"
     "sort"
     "strings"
+	"io"
 )
 
 // TODO: phase out goquery - just use cascadia directly
 
 
-func grabHeadline(root *html.Node, art_url string) string {
+func grabHeadline(root *html.Node, art_url string, dbug io.Writer) string {
 	doc := goquery.NewDocumentFromNode(root)
 
     var candidates = make(CandidateList, 0, 100)
@@ -122,13 +123,13 @@ func grabHeadline(root *html.Node, art_url string) string {
 
     sort.Sort(Reverse{candidates})
     
-    fmt.Printf("HEADLINE %d candidates\n", len(candidates))
+    fmt.Fprintf(dbug,"HEADLINE %d candidates\n", len(candidates))
     // show the top ten, with reasons
 	if( len(candidates)>10) {
 		candidates = candidates[0:10]
 	}
     for _,c := range(candidates) {
-        c.dump()
+        c.dump(dbug)
     }
 
     return candidates[0].Txt
