@@ -1,0 +1,11 @@
+arts
+----
+
+Arts is a package to help extract data from news articles
+This means headline, authors, dates, text content etc...
+
+Work in progress.
+
+see tools/scrape.go for an example.
+
+
