@@ -18,6 +18,8 @@ import (
 // happened to a particular candidate along the way. Saves us the shotgun
 // approach of logging everything as it happens, then trying to read back
 // through it)
+// TODO: this stuff should all be local to package.
+//       no need to expose any of it.
 type Candidate struct {
 	Node  *html.Node
 	Txt   string
