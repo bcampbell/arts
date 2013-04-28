@@ -25,6 +25,7 @@ import (
 	"strings"
 	"arts"
 	"flag"
+	"errors"
 )
 
 
@@ -53,36 +54,28 @@ func main() {
 		os.Exit(1)
 	}
 
-
-	proxyString := "http://localhost:3128"
-	proxyURL, err := url.Parse(proxyString)
-	if err != nil {
-		panic(err)
-	}
 	artURL := flag.Arg(0)
-	_, err = url.Parse(artURL)
+	u, err := url.Parse(artURL)
 	if err != nil {
 		panic(err)
 	}
 
-	transport := &http.Transport{Proxy: http.ProxyURL(proxyURL)}
-	client := &http.Client{Transport: transport}
-
-	request, err := http.NewRequest("GET", artURL, nil)
-	if err != nil {
-		panic(err)
+	var in io.ReadCloser
+	switch strings.ToLower(u.Scheme) {
+		case "http","https":
+			in,err = openHttp(artURL)
+			if err != nil {
+				panic(err)
+			}
+		case "file":
+			in,err = os.Open(u.Path)
+			if err != nil {
+				panic(err)
+			}
 	}
-	response, err := client.Do(request)
-	if err != nil {
-		panic(err)
-	}
 
-    if response.StatusCode != 200 {
-        fmt.Printf("Request failed: %s\n", response.Status)
-        os.Exit(1)
-    }
-
-	foo, err := ioutil.ReadAll(response.Body)
+	defer in.Close()
+	foo, err := ioutil.ReadAll(in)
 	if err != nil {
 		panic(err)
 	}
@@ -94,6 +87,34 @@ func main() {
 
 	writeYaml(os.Stdout, artURL, art)
 }
+
+
+func openHttp(artURL string) (io.ReadCloser,error) {
+	proxyString := "http://localhost:3128"
+	proxyURL, err := url.Parse(proxyString)
+	if err != nil {
+		return nil,err
+	}
+
+	transport := &http.Transport{Proxy: http.ProxyURL(proxyURL)}
+	client := &http.Client{Transport: transport}
+
+	request, err := http.NewRequest("GET", artURL, nil)
+	if err != nil {
+		return nil,err
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return nil,err
+	}
+
+    if response.StatusCode != 200 {
+        return nil, errors.New(fmt.Sprintf("Request failed: %s", response.Status))
+    }
+	return response.Body,nil
+}
+
+
 
 
 // The plan is to store a big set of example articles in this format:
