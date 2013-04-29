@@ -15,9 +15,11 @@ import (
 	"regexp"
 	"os"
 	"io"
+//	"fmt"
 	"io/ioutil"
+	"code.google.com/p/go-charset/charset"
+	_ "code.google.com/p/go-charset/data"
 )
-
 
 type Author struct {
 	Name string
@@ -38,14 +40,25 @@ type Article struct {
 }
 
 
-func Extract(raw_html, artUrl string, debugOutput bool) (*Article, error) {
-	r := strings.NewReader(raw_html)
+func Extract(raw_html []byte, artUrl string, debugOutput bool) (*Article, error) {
+	enc := findCharset("", raw_html)
+	var r io.Reader
+	r = strings.NewReader(string(raw_html))
+	if enc != "utf-8" {
+		// we'll be translating to utf-8
+		var err error
+		r, err = charset.NewReader(enc, r)
+		if err != nil {
+			return nil,err
+		}
+	}
+	art := &Article{}
+
 	root, err := html.Parse(r)
 	if err != nil {
 		return nil,err
 	}
 
-	art := &Article{}
 
 	var dbug io.Writer
 	if debugOutput {

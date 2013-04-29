@@ -75,11 +75,10 @@ func main() {
 	}
 
 	defer in.Close()
-	foo, err := ioutil.ReadAll(in)
+	raw_html, err := ioutil.ReadAll(in)
 	if err != nil {
 		panic(err)
 	}
-	raw_html := string(foo)
 	art,err := arts.Extract(raw_html,artURL,*debug)
 	if err != nil {
 		panic(err)
