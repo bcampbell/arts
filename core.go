@@ -30,6 +30,7 @@ type Author struct {
 
 type Article struct {
 	CanonicalUrl string
+	AlternateUrls []string
 	Headline string
 	Authors []Author
 	Content string
@@ -67,7 +68,11 @@ func Extract(raw_html []byte, artUrl string, debugOutput bool) (*Article, error)
 		dbug = ioutil.Discard
 	}
 
+
 	removeScripts(root)
+	// extract any canonical or alternate urls
+	art.CanonicalUrl, art.AlternateUrls = grabUrls(root)
+
 	contentNodes,contentScores := grabContent(root,dbug)
 	art.Headline = grabHeadline(root, artUrl,dbug)
 	art.Authors = grabAuthors(root, contentNodes, dbug)

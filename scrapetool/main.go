@@ -67,7 +67,7 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-		case "file":
+		case "file","":
 			in,err = os.Open(u.Path)
 			if err != nil {
 				panic(err)
@@ -122,7 +122,13 @@ func openHttp(artURL string) (io.ReadCloser,error) {
 func writeYaml(w io.Writer, url string, art *arts.Article) {
 	// yaml front matter
 	fmt.Fprintf(w,"---\n")
-	fmt.Fprintf(w,"url: %s\n", quote(art.CanonicalUrl))
+	fmt.Fprintf(w,"canonical_url: %s\n", quote(art.CanonicalUrl))
+	if len(art.AlternateUrls) >0 {
+		fmt.Fprintf(w,"alternate_urls:\n")
+		for _,url := range art.AlternateUrls {
+			fmt.Fprintf(w,"  - %s\n", quote(url))
+		}
+	}
 	fmt.Fprintf(w,"headline: %s\n", quote(art.Headline))
 	if len(art.Authors)>0 {
 		fmt.Fprintf(w,"authors:\n")
