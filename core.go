@@ -89,7 +89,6 @@ func Extract(raw_html []byte, artUrl string, debugOutput bool) (*Article, error)
 	// cheesyness to make it a little more readable...
 	art.Content = regexp.MustCompile("(</p>)|(</div>)|(<br/>)").ReplaceAllString(art.Content,"$0\n")
 
-	art.CanonicalUrl = artUrl	// TODO!
 
 //	fmt.Printf("extracted %d nodes:\n", len(contentNodes))
 //	for _, n := range contentNodes {
