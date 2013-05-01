@@ -1,12 +1,11 @@
 package arts
 
 import (
-	"testing"
-	"strings"
-	"sort"
 	"code.google.com/p/go.net/html"
+	"sort"
+	"strings"
+	"testing"
 )
-
 
 // TestGrabUrls tests the grabUrls() function
 func TestGrabUrls(t *testing.T) {
@@ -23,7 +22,7 @@ func TestGrabUrls(t *testing.T) {
 </html>
 `
 	expectedCanonical := "http://example.com/fook"
-	expectedAlternates := []string{"http://example.com/fook?fb=1","http://examp.le/?p=1"}
+	expectedAlternates := []string{"http://example.com/fook?fb=1", "http://examp.le/?p=1"}
 	sort.Strings(expectedAlternates)
 
 	root, err := html.Parse(strings.NewReader(testHtml))
@@ -37,13 +36,12 @@ func TestGrabUrls(t *testing.T) {
 		t.Errorf(`bad canonical (got "%s" expected "%s")`, canonical, expectedCanonical)
 	}
 
-
 	bad := false
 	sort.Strings(alternates)
 	if len(alternates) != len(expectedAlternates) {
 		bad = true
 	} else {
-		for i,alt := range alternates {
+		for i, alt := range alternates {
 			if alt != expectedAlternates[i] {
 				bad = true
 			}
@@ -54,4 +52,3 @@ func TestGrabUrls(t *testing.T) {
 		t.Errorf(`bad alternate url list (got "%v" expected "%v")`, alternates, expectedAlternates)
 	}
 }
-

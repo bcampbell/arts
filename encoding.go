@@ -1,18 +1,16 @@
 package arts
 
 import (
+	"bytes"
 	"code.google.com/p/cascadia"
 	"code.google.com/p/go.net/html"
+	"mime"
 	"strings"
 	"unicode/utf8"
-	"mime"
-	"bytes"
 )
 
 // some background:
 // http://www.w3.org/International/questions/qa-html-encoding-declarations#quicklookup
-
-
 
 var metaCharsetSelector = cascadia.MustCompile(`meta[charset], meta[http-equiv="Content-Type"]`)
 
@@ -118,4 +116,3 @@ var compatibilityEncodings = map[string]string{
 	"tis-620":  "windows-874",
 	"us-ascii": "windows-1252",
 }
-

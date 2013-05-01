@@ -19,13 +19,9 @@ import (
 	"math"
 	"regexp"
 	//	"sort"
-	"strings"
 	"io"
+	"strings"
 )
-
-
-
-
 
 // assign initial scoring to a potential content candidate
 func initializeNode(c *Candidate) {
@@ -59,8 +55,6 @@ var okMaybeItsACandidate = regexp.MustCompile(`(?i)and|article|body|column|main|
 var positivePat = regexp.MustCompile(`(?i)article|body|content|entry|hentry|main|page|pagination|post|text|blog|story`)
 var negativePat = regexp.MustCompile(`(?i)combx|comment|com-|contact|foot|footer|footnote|masthead|media|meta|outbrain|promo|related|scroll|shoutbox|sidebar|sponsor|shopping|tags|tool|widget`)
 
-
-
 // grabContent finds the nodes in the page which contain the actual article text.
 // Returns a slice of node pointers (in order), and a map containing all
 // the content scores calculated. The scores can be used in a later pass to help
@@ -88,7 +82,7 @@ func grabContent(root *html.Node, dbug io.Writer) ([]*html.Node, CandidateMap) {
 			if unlikelyCandidates.MatchString(unlikelyMatchString) == true &&
 				okMaybeItsACandidate.MatchString(unlikelyMatchString) == false &&
 				node.DataAtom != atom.Body {
-				fmt.Fprintf(dbug,"Removing unlikely candidate - %s\n", describeNode(node))
+				fmt.Fprintf(dbug, "Removing unlikely candidate - %s\n", describeNode(node))
 				node.Parent.RemoveChild(node)
 				continue
 			}
@@ -100,7 +94,7 @@ func grabContent(root *html.Node, dbug io.Writer) ([]*html.Node, CandidateMap) {
 		/* XYZZY TODO: Turn all divs that don't have children block level elements into p's */
 	}
 
-	fmt.Fprintf(dbug,"%d nodes to score\n", len(nodesToScore))
+	fmt.Fprintf(dbug, "%d nodes to score\n", len(nodesToScore))
 
 	/*
 	 * Loop through all paragraphs, and assign a score to them based on how content-y they look.
@@ -220,7 +214,7 @@ func grabContent(root *html.Node, dbug io.Writer) ([]*html.Node, CandidateMap) {
 
 	}
 
-	return contentNodes,candidates
+	return contentNodes, candidates
 }
 
 /*

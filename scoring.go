@@ -3,13 +3,12 @@ package arts
 // scoring.go contains helpers for rating nodes.
 
 import (
-	"fmt"
 	"code.google.com/p/go.net/html"
+	"fmt"
 	"io"
+
 //	"strings"
 )
-
-
 
 // Candidate is for rating a node/text snippet.
 // it keeps a little log of the accumulating scoring operations to aid
@@ -21,32 +20,32 @@ import (
 // TODO: this stuff should all be local to package.
 //       no need to expose any of it.
 type Candidate struct {
-	Node  *html.Node
-	Txt   string
+	Node       *html.Node
+	Txt        string
 	TotalScore float64
-    Log []string
+	Log        []string
 }
 
 func newCandidate(n *html.Node, txt string) *Candidate {
-	return &Candidate{n, txt, 0, make([]string,0,4)}
+	return &Candidate{n, txt, 0, make([]string, 0, 4)}
 }
 
-func (c *Candidate) addScore(value float64,desc string) {
-	c.Log = append(c.Log,fmt.Sprintf("%+.3g %s",value, desc))
-    c.TotalScore += value
+func (c *Candidate) addScore(value float64, desc string) {
+	c.Log = append(c.Log, fmt.Sprintf("%+.3g %s", value, desc))
+	c.TotalScore += value
 }
 
-func (c *Candidate) scaleScore(scaleFactor float64,desc string) {
-	c.Log = append(c.Log,fmt.Sprintf("*%.3g %s",scaleFactor, desc))
-    c.TotalScore *= scaleFactor
+func (c *Candidate) scaleScore(scaleFactor float64, desc string) {
+	c.Log = append(c.Log, fmt.Sprintf("*%.3g %s", scaleFactor, desc))
+	c.TotalScore *= scaleFactor
 }
 
 // dump prints out a candidate and the scores it received for debugging
 func (c *Candidate) dump(out io.Writer) {
-    fmt.Fprintf(out,"%.3g %s '%s'\n", c.TotalScore, describeNode(c.Node), c.Txt)
-    for _,s := range(c.Log) {
-        fmt.Fprintf(out,"  %s\n", s)
-    }
+	fmt.Fprintf(out, "%.3g %s '%s'\n", c.TotalScore, describeNode(c.Node), c.Txt)
+	for _, s := range c.Log {
+		fmt.Fprintf(out, "  %s\n", s)
+	}
 }
 
 // Candidate implements a sortable set of Candidates
@@ -68,7 +67,3 @@ func (candidates CandidateMap) get(n *html.Node) *Candidate {
 	}
 	return c
 }
-
-
-
-
