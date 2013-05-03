@@ -13,37 +13,35 @@ package main
 //
 // for now, I'm using this in my squid.conf:
 //   refresh_pattern ^http: 60 20% 4320 ignore-no-cache ignore-no-store override-expire
-// 
+//
 //
 import (
-	"net/http"
+	"errors"
+	"flag"
 	"fmt"
+	"github.com/bcampbell/arts"
+	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
-	"io"
 	"strings"
-	"arts"
-	"flag"
-	"errors"
 )
-
 
 // quote a string for yaml output
 func quote(s string) string {
-	if strings.Contains(s,`:`) {
-		if !strings.Contains(s,`"`) {
-			return fmt.Sprintf(`"%s"`,s)
+	if strings.Contains(s, `:`) {
+		if !strings.Contains(s, `"`) {
+			return fmt.Sprintf(`"%s"`, s)
 		} else {
-			if strings.Contains(s,"'") {
+			if strings.Contains(s, "'") {
 				s = strings.Replace(s, "'", "''", -1)
 			}
-			return fmt.Sprintf(`'%s'`,s)
+			return fmt.Sprintf(`'%s'`, s)
 		}
 	}
 	return s
 }
-
 
 func main() {
 	var debug = flag.Bool("d", false, "log debug info to stderr")
@@ -62,16 +60,16 @@ func main() {
 
 	var in io.ReadCloser
 	switch strings.ToLower(u.Scheme) {
-		case "http","https":
-			in,err = openHttp(artURL)
-			if err != nil {
-				panic(err)
-			}
-		case "file","":
-			in,err = os.Open(u.Path)
-			if err != nil {
-				panic(err)
-			}
+	case "http", "https":
+		in, err = openHttp(artURL)
+		if err != nil {
+			panic(err)
+		}
+	case "file", "":
+		in, err = os.Open(u.Path)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	defer in.Close()
@@ -79,7 +77,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	art,err := arts.Extract(raw_html,artURL,*debug)
+	art, err := arts.Extract(raw_html, artURL, *debug)
 	if err != nil {
 		panic(err)
 	}
@@ -87,12 +85,11 @@ func main() {
 	writeYaml(os.Stdout, artURL, art)
 }
 
-
-func openHttp(artURL string) (io.ReadCloser,error) {
+func openHttp(artURL string) (io.ReadCloser, error) {
 	proxyString := "http://localhost:3128"
 	proxyURL, err := url.Parse(proxyString)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
 	transport := &http.Transport{Proxy: http.ProxyURL(proxyURL)}
@@ -100,44 +97,43 @@ func openHttp(artURL string) (io.ReadCloser,error) {
 
 	request, err := http.NewRequest("GET", artURL, nil)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	response, err := client.Do(request)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
-    if response.StatusCode != 200 {
-        return nil, errors.New(fmt.Sprintf("Request failed: %s", response.Status))
-    }
-	return response.Body,nil
+	if response.StatusCode != 200 {
+		return nil, errors.New(fmt.Sprintf("Request failed: %s", response.Status))
+	}
+	return response.Body, nil
 }
-
-
-
 
 // The plan is to store a big set of example articles in this format:
 // YAML front matter (like in jekyll), with headline, authors etc...
 // The rest of the file has the expected article text.
 func writeYaml(w io.Writer, url string, art *arts.Article) {
 	// yaml front matter
-	fmt.Fprintf(w,"---\n")
-	fmt.Fprintf(w,"canonical_url: %s\n", quote(art.CanonicalUrl))
-	if len(art.AlternateUrls) >0 {
-		fmt.Fprintf(w,"alternate_urls:\n")
-		for _,url := range art.AlternateUrls {
-			fmt.Fprintf(w,"  - %s\n", quote(url))
+	fmt.Fprintf(w, "---\n")
+	fmt.Fprintf(w, "canonical_url: %s\n", quote(art.CanonicalUrl))
+	if len(art.AlternateUrls) > 0 {
+		fmt.Fprintf(w, "alternate_urls:\n")
+		for _, url := range art.AlternateUrls {
+			fmt.Fprintf(w, "  - %s\n", quote(url))
 		}
 	}
-	fmt.Fprintf(w,"headline: %s\n", quote(art.Headline))
-	if len(art.Authors)>0 {
-		fmt.Fprintf(w,"authors:\n")
-		for _,author := range art.Authors {
-			fmt.Fprintf(w,"  - name: %s\n", quote(author.Name))
+	fmt.Fprintf(w, "headline: %s\n", quote(art.Headline))
+	if len(art.Authors) > 0 {
+		fmt.Fprintf(w, "authors:\n")
+		for _, author := range art.Authors {
+			fmt.Fprintf(w, "  - name: %s\n", quote(author.Name))
 		}
 	}
-	fmt.Fprintf(w,"---\n")
+	if art.Published != "" {
+		fmt.Fprintf(w, "published: %s\n", art.Published)
+	}
+	fmt.Fprintf(w, "---\n")
 	// the text content
-	fmt.Fprint(w,art.Content)
+	fmt.Fprint(w, art.Content)
 }
-

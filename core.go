@@ -24,15 +24,25 @@ type Author struct {
 
 type Article struct {
 	CanonicalUrl  string
-	AlternateUrls []string
+	AlternateUrls []string // doesn't include canonical one
 	Headline      string
 	Authors       []Author
 	Content       string
-	// Pubdate
+	// date of publication (an ISO8601 string or "" for none)
+	Published string
+	// Updated
 	// Language
 	// Publication
-	// other URLs
 }
+
+// TODO:
+// - detect non-article pages (index pages etc)
+
+// TODO: pass hints in to the scraper:
+// - is it contemporary? (ie not an insanely old or future date)
+// - an expected author
+// - expected location/timezone
+// - expected language
 
 func Extract(raw_html []byte, artUrl string, debugOutput bool) (*Article, error) {
 	enc := findCharset("", raw_html)
@@ -67,6 +77,9 @@ func Extract(raw_html []byte, artUrl string, debugOutput bool) (*Article, error)
 	contentNodes, contentScores := grabContent(root, dbug)
 	art.Headline = grabHeadline(root, artUrl, dbug)
 	art.Authors = grabAuthors(root, contentNodes, dbug)
+
+	art.Published, _ = grabDates(root, art.CanonicalUrl, dbug)
+
 	// TODO: Turn all double br's into p's? Kill <style> tags? (see prepDocument())
 	removeCruft(contentNodes, contentScores)
 	sanitiseContent(contentNodes)
