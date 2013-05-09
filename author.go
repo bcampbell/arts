@@ -14,7 +14,7 @@ import (
 )
 
 func grabAuthors(root *html.Node, contentNodes []*html.Node, dbug io.Writer) []Author {
-	var candidates = make(CandidateList, 0, 100)
+	var candidates = make(candidateList, 0, 100)
 
 	likelyElementSel := cascadia.MustCompile("a,p,span,div,li,h3,h4,h5,h6,td,strong")
 	asideSel := cascadia.MustCompile("aside")
@@ -48,77 +48,77 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, dbug io.Writer) []A
 			continue // too short
 		}
 
-		c := newCandidate(el, txt)
+		c := newStandardCandidate(el, txt)
 
 		// TEST: marked up with hcard?
 		if hcardSel.Match(el) {
-			c.addScore(2, "hcard")
+			c.addPoints(2, "hcard")
 		}
 
 		// TEST: hatom author?
 		if hcardAuthorSel.Match(el) {
-			c.addScore(2, "hatom author")
+			c.addPoints(2, "hatom author")
 			if closest(el, hentrySel) != nil {
-				c.addScore(2, "inside hentry")
+				c.addPoints(2, "inside hentry")
 			}
 		}
 
 		// TEST: rel="author"
 		if relAuthorSel.Match(el) {
-			c.addScore(2, "rel-author")
+			c.addPoints(2, "rel-author")
 		}
 
 		// TEST: likely other indicators in class/id?
 		if likelyClassPat.MatchString(getAttr(el, "class")) {
-			c.addScore(1, "indicative class")
+			c.addPoints(1, "indicative class")
 		}
 		if likelyClassPat.MatchString(getAttr(el, "id")) {
-			c.addScore(1, "indicative id")
+			c.addPoints(1, "indicative id")
 		}
 
 		// TEST: likely other indicators in parents class/id?
 		if likelyClassPat.MatchString(getAttr(el.Parent, "class")) {
-			c.addScore(1, "parent has indicative class")
+			c.addPoints(1, "parent has indicative class")
 		}
 		if likelyClassPat.MatchString(getAttr(el.Parent, "id")) {
-			c.addScore(1, "parent has indicative id")
+			c.addPoints(1, "parent has indicative id")
 		}
 
 		// TEST: schema.org author
 		if itemPropAuthorSel.Match(el) {
-			c.addScore(2, `itemprop="author"`)
+			c.addPoints(2, `itemprop="author"`)
 		}
 
 		// TEST: inside schema.org article?
 		if closest(el, schemaOrgArticleSel) != nil {
-			c.addScore(2, "inside schema.org article")
+			c.addPoints(2, "inside schema.org article")
 		}
 
 		// TEST: Indicative text? (eg "By...")
 		if indicativePat.MatchString(txt) {
-			c.addScore(2, "indicative text")
+			c.addPoints(2, "indicative text")
 		}
 
 		// TEST: inside an obvious sidebar or <aside>?
 		if closest(el, asideSel) != nil {
-			c.addScore(-3, "contained within <aside>")
+			c.addPoints(-3, "contained within <aside>")
 		}
 		if closest(el, sidebarSel) != nil {
-			c.addScore(-3, "contained within #sidebar")
+			c.addPoints(-3, "contained within #sidebar")
 		}
 
 		// TEST: within article container?
 		//        if insideArticle(s) {
-		//            c.addScore(1,"within article container")
+		//            c.addPoints(1,"within article container")
 		//        }
 		if closest(el, articleHeaderSel) != nil {
-			c.addScore(1, "contained within <article> <header>")
+			c.addPoints(1, "contained within <article> <header>")
 		}
 
 		// TEST: within article content?
 		for _, contentNode := range contentNodes {
 			if contains(contentNode, el) {
-				c.addScore(2, "contained within content")
+				c.addPoints(2, "contained within content")
 			}
 		}
 
@@ -134,12 +134,12 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, dbug io.Writer) []A
 		if el.DataAtom == atom.A {
 			href := getAttr(el, "href")
 			if goodUrlPat.MatchString(href) {
-				c.addScore(2, "likely-looking link")
+				c.addPoints(2, "likely-looking link")
 			}
 
 		}
 
-		if c.TotalScore > 0 {
+		if c.total() > 0 {
 			candidates = append(candidates, c)
 		}
 	}
@@ -157,11 +157,10 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, dbug io.Writer) []A
 
 	authors := make([]Author, 0, 4)
 	for _, c := range candidates {
-		if c.TotalScore >= 2.0 {
-			author := Author{Name: c.Txt}
+		if c.total() >= 2.0 {
+			author := Author{Name: c.txt()}
 			authors = append(authors, author)
 		}
-
 	}
 	return authors
 }

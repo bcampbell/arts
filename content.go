@@ -23,21 +23,35 @@ import (
 	"strings"
 )
 
+// todo: define a specialised type for content candidates?
+// candidateMap stores candidates for quick lookup by node
+type candidateMap map[*html.Node]candidate
+
+// get returns an existing candidiate struct or create a blank new one
+func (candidates candidateMap) get(n *html.Node) candidate {
+	c, ok := candidates[n]
+	if !ok {
+		c = newStandardCandidate(n, "")
+		candidates[n] = c
+	}
+	return c
+}
+
 // assign initial scoring to a potential content candidate
-func initializeNode(c *Candidate) {
-	switch c.Node.DataAtom {
+func initializeNode(c candidate) {
+	switch c.node().DataAtom {
 	case atom.Div:
-		c.addScore(5, "<div>")
+		c.addPoints(5, "<div>")
 	case atom.Pre, atom.Td, atom.Blockquote:
-		c.addScore(3, "<pre>, <td> or <blockquote>")
+		c.addPoints(3, "<pre>, <td> or <blockquote>")
 	case atom.Address, atom.Ol, atom.Ul, atom.Dl, atom.Dd, atom.Li, atom.Form:
-		c.addScore(-3, "address, list or form")
+		c.addPoints(-3, "address, list or form")
 	case atom.H1, atom.H2, atom.H3, atom.H4, atom.H5, atom.H6, atom.Th:
-		c.addScore(-5, "heading")
+		c.addPoints(-5, "heading")
 	}
 
-	if score := getClassWeight(c.Node); score != 0 {
-		c.addScore(score, "class/id score")
+	if score := getClassWeight(c.node()); score != 0 {
+		c.addPoints(score, "class/id score")
 	}
 }
 
@@ -59,9 +73,9 @@ var negativePat = regexp.MustCompile(`(?i)combx|comment|com-|contact|foot|footer
 // Returns a slice of node pointers (in order), and a map containing all
 // the content scores calculated. The scores can be used in a later pass to help
 // remove cruft nodes in the text (eg share/like buttons etc)
-func grabContent(root *html.Node, dbug io.Writer) ([]*html.Node, CandidateMap) {
+func grabContent(root *html.Node, dbug io.Writer) ([]*html.Node, candidateMap) {
 
-	var candidates = make(CandidateMap)
+	var candidates = make(candidateMap)
 
 	stripUnlikelyCandidates := true
 
@@ -139,11 +153,11 @@ func grabContent(root *html.Node, dbug io.Writer) ([]*html.Node, CandidateMap) {
 		contentScore += foo
 
 		/* Add the content score to the parent. The grandparent gets half. */
-		candidates.get(parentNode).addScore(contentScore, "Child content")
+		candidates.get(parentNode).addPoints(contentScore, "Child content")
 		if grandParentNode != nil {
 			halfScore := contentScore / 2
 			if halfScore > 0 {
-				candidates.get(grandParentNode).addScore(halfScore, "Child content")
+				candidates.get(grandParentNode).addPoints(halfScore, "Child content")
 			}
 		}
 	}
@@ -153,16 +167,16 @@ func grabContent(root *html.Node, dbug io.Writer) ([]*html.Node, CandidateMap) {
 	 * relatively small link density (5% or less) and be mostly unaffected by this operation.
 	 **/
 	for _, c := range candidates {
-		c.scaleScore((1 - getLinkDensity(c.Node)), "link density")
+		c.scalePoints((1 - getLinkDensity(c.node())), "link density")
 	}
 
 	/**
 	 * After we've calculated scores, loop through all of the possible candidate nodes we found
 	 * and find the one with the highest score.
 	**/
-	var topCandidate *Candidate = nil
+	var topCandidate candidate = nil
 	for _, c := range candidates {
-		if topCandidate == nil || c.TotalScore > topCandidate.TotalScore {
+		if topCandidate == nil || c.total() > topCandidate.total() {
 			topCandidate = c
 		}
 	}
@@ -172,26 +186,26 @@ func grabContent(root *html.Node, dbug io.Writer) ([]*html.Node, CandidateMap) {
 	 * Things like preambles, content split by ads that we removed, etc.
 	**/
 
-	siblingScoreThreshold := topCandidate.TotalScore * 0.2
+	siblingScoreThreshold := topCandidate.total() * 0.2
 	if siblingScoreThreshold < 10 {
 		siblingScoreThreshold = 10
 	}
 
 	contentNodes := make([]*html.Node, 0, 64)
 
-	for siblingNode := topCandidate.Node.Parent.FirstChild; siblingNode != nil; siblingNode = siblingNode.NextSibling {
+	for siblingNode := topCandidate.node().Parent.FirstChild; siblingNode != nil; siblingNode = siblingNode.NextSibling {
 		useIt := false
-		if siblingNode == topCandidate.Node {
+		if siblingNode == topCandidate.node() {
 			useIt = true
 		} else {
 
 			contentBonus := 0.0
 			/* Give a bonus if sibling nodes and top candidates have the exact same classname */
-			topClass := getAttr(topCandidate.Node, "class")
+			topClass := getAttr(topCandidate.node(), "class")
 			if getAttr(siblingNode, "class") == topClass && topClass != "" {
-				contentBonus += topCandidate.TotalScore * 0.2
+				contentBonus += topCandidate.total() * 0.2
 			}
-			if sc, ok := candidates[siblingNode]; ok == true && sc.TotalScore+contentBonus >= siblingScoreThreshold {
+			if sc, ok := candidates[siblingNode]; ok == true && sc.total()+contentBonus >= siblingScoreThreshold {
 				useIt = true
 			}
 
@@ -251,7 +265,7 @@ func getClassWeight(n *html.Node) float64 {
 
 // Remove all extraneous crap in the content - related articles, share buttons etc...
 // (equivalent to prepArticle() in readbility.js)
-func removeCruft(contentNodes []*html.Node, candidates CandidateMap) {
+func removeCruft(contentNodes []*html.Node, candidates candidateMap) {
 
 	zapConditionally(contentNodes, "form", candidates)
 	zap(contentNodes, "object")
@@ -298,7 +312,7 @@ func zap(contentNodes []*html.Node, tagSel string) {
  * Clean a set of elements, removing all matching tags if they look fishy.
  * "Fishy" is an algorithm based on content length, classnames, link density, number of images & embeds, etc.
  **/
-func zapConditionally(contentNodes []*html.Node, tagSel string, candidates CandidateMap) {
+func zapConditionally(contentNodes []*html.Node, tagSel string, candidates candidateMap) {
 
 	doomed := make([]*html.Node, 0, 32)
 	sel := cascadia.MustCompile(tagSel)
@@ -308,7 +322,7 @@ func zapConditionally(contentNodes []*html.Node, tagSel string, candidates Candi
 			weight := getClassWeight(node)
 			var contentScore float64 = 0.0
 			if c, ok := candidates[node]; ok {
-				contentScore = c.TotalScore
+				contentScore = c.total()
 			}
 
 			if weight+contentScore < 0 {

@@ -16,7 +16,7 @@ import (
 func grabHeadline(root *html.Node, art_url string, dbug io.Writer) string {
 	doc := goquery.NewDocumentFromNode(root)
 
-	var candidates = make(CandidateList, 0, 100)
+	var candidates = make(candidateList, 0, 100)
 
 	indicative := regexp.MustCompile(`(?i)entry-title|headline|title`)
 
@@ -46,37 +46,37 @@ func grabHeadline(root *html.Node, art_url string, dbug io.Writer) string {
 
 		cooked_txt := toAlphanumeric(txt)
 
-		c := newCandidate(s.Nodes[0], txt)
+		c := newStandardCandidate(s.Nodes[0], txt)
 
 		// TEST: is it a headliney element?
 		tag := s.Nodes[0].DataAtom
 		if tag == atom.H1 || tag == atom.H2 || tag == atom.H3 || tag == atom.H4 {
-			c.addScore(2, "headliney")
+			c.addPoints(2, "headliney")
 		}
 		if tag == atom.Span || tag == atom.Td {
-			c.addScore(-2, "not headliney")
+			c.addPoints(-2, "not headliney")
 		}
 
 		// TEST: likely-looking class or id?
 		cls, foo := s.Attr("class")
 		if foo && (indicative.FindStringIndex(cls) != nil) {
-			c.addScore(2, "indicative class")
+			c.addPoints(2, "indicative class")
 		}
 
 		id, foo := s.Attr("id")
 		if foo && (indicative.FindStringIndex(id) != nil) {
-			c.addScore(2, "indicative id")
+			c.addPoints(2, "indicative id")
 		}
 
 		if len(cooked_txt) > 0 {
 			// TEST: appears in page <title>?
 			if strings.Contains(cooked_title, cooked_txt) {
-				c.addScore(3, "appears in <title>")
+				c.addPoints(3, "appears in <title>")
 			}
 
 			// TEST: appears in og:title?
 			if strings.Contains(cooked_og_title, cooked_txt) {
-				c.addScore(3, "appears in og:title")
+				c.addPoints(3, "appears in og:title")
 			}
 
 			// TEST: appears in slug?
@@ -90,7 +90,7 @@ func grabHeadline(root *html.Node, art_url string, dbug io.Writer) string {
 				}
 				var value float64 = float64(5*matches) / float64(len(parts))
 				if value > 0 {
-					c.addScore(value, "match slug")
+					c.addPoints(value, "match slug")
 				}
 			}
 		}
@@ -100,21 +100,21 @@ func grabHeadline(root *html.Node, art_url string, dbug io.Writer) string {
 
 		// TEST: inside an obvious sidebar or <aside>?
 		if s.Closest("aside").Length() > 0 {
-			c.addScore(-3, "contained within <aside>")
+			c.addPoints(-3, "contained within <aside>")
 		}
 		if s.Closest("#sidebar").Length() > 0 {
-			c.addScore(-3, "contained within #sidebar")
+			c.addPoints(-3, "contained within #sidebar")
 		}
 
 		// TEST: within article container?
 		if insideArticle(s) {
-			c.addScore(1, "within article container")
+			c.addPoints(1, "within article container")
 		}
 
 		// IDEAS:
 		//  promote if within <article> <header>?
 
-		if c.TotalScore > 0 {
+		if c.total() > 0 {
 			candidates = append(candidates, c)
 		}
 	})
@@ -130,7 +130,7 @@ func grabHeadline(root *html.Node, art_url string, dbug io.Writer) string {
 		c.dump(dbug)
 	}
 
-	return candidates[0].Txt
+	return candidates[0].txt()
 }
 
 func insideArticle(s *goquery.Selection) bool {
