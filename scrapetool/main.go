@@ -133,6 +133,9 @@ func writeYaml(w io.Writer, url string, art *arts.Article) {
 	if art.Published != "" {
 		fmt.Fprintf(w, "published: %s\n", art.Published)
 	}
+	if art.Updated != "" {
+		fmt.Fprintf(w, "updated: %s\n", art.Updated)
+	}
 	fmt.Fprintf(w, "---\n")
 	// the text content
 	fmt.Fprint(w, art.Content)

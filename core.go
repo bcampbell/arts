@@ -30,7 +30,7 @@ type Article struct {
 	Content       string
 	// date of publication (an ISO8601 string or "" for none)
 	Published string
-	// Updated
+	Updated   string
 	// Language
 	// Publication
 }
@@ -70,15 +70,22 @@ func Extract(raw_html []byte, artUrl string, debugOutput bool) (*Article, error)
 		dbug = ioutil.Discard
 	}
 
+	html.Render(dbug, root)
+
 	removeScripts(root)
 	// extract any canonical or alternate urls
 	art.CanonicalUrl, art.AlternateUrls = grabUrls(root)
+	art.Headline = grabHeadline(root, artUrl, dbug)
 
 	contentNodes, contentScores := grabContent(root, dbug)
-	art.Headline = grabHeadline(root, artUrl, dbug)
 	art.Authors = grabAuthors(root, contentNodes, dbug)
-
-	art.Published, _ = grabDates(root, art.CanonicalUrl, dbug)
+	published, updated := grabDates(root, art.CanonicalUrl, contentNodes, dbug)
+	if !published.Empty() {
+		art.Published, _ = published.IsoFormat()
+	}
+	if !updated.Empty() {
+		art.Updated, _ = updated.IsoFormat()
+	}
 
 	// TODO: Turn all double br's into p's? Kill <style> tags? (see prepDocument())
 	removeCruft(contentNodes, contentScores)

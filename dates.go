@@ -6,39 +6,14 @@ import (
 	"fmt"
 	//"github.com/matrixik/goquery"
 	"code.google.com/p/cascadia"
-	"regexp"
-	//	"sort"
 	"io"
+	"regexp"
+	"sort"
 	//	"strings"
-	"errors"
+	//	"errors"
 	"github.com/bcampbell/fuzzytime"
 	"strconv"
 )
-
-/*
-
-   meta_dates = set()
-   for meta in doc.findall('.//meta'):
-       n = meta.get('name', meta.get('property', ''))
-       if pats.pubdate['metatags'].search(n):
-           logging.debug(" date: consider meta name='%s' content='%s'" % (n,meta.get('content','')))
-           fuzzy = fuzzydate.parse_datetime(meta.get('content',''))
-           if not fuzzy.empty_date():
-               meta_dates.add(fuzzy.date(fuzzydate.fuzzydate(day=1)))
-*/
-
-/*
-pubdate = {
-    'metatags': re.compile('date|time',re.I),
-    'classes': re.compile('published|updated|date|time|fecha',re.I),
-    'url_datefmts': (
-        re.compile(r'/(?P<year>\d{4})/(?P<month>\d{1,2})/(?P<day>\d{1,2})/',re.I),
-        re.compile(r'[^0-9](?P<year>\d{4})-(?P<month>\d{1,2})-(?P<day>\d{1,2})[^0-9]',re.I),
-        ),
-    'comment_classes': re.compile('comment|respond',re.I),
-    'pubdate_indicator': re.compile('published|posted|updated',re.I),
-}
-*/
 
 type dateCandidate struct {
 	standardCandidate
@@ -49,20 +24,51 @@ func newDateCandidate(n *html.Node, txt string, dt fuzzytime.DateTime) candidate
 	return &dateCandidate{standardCandidate{n, txt, 0, 1, make([]string, 0, 4)}, dt}
 }
 
-var pubdatePats = struct {
-	urlDateFmts []*regexp.Regexp // to get dates out of URLs
+var dateSels = struct {
+	machineReadable cascadia.Selector
+	meta            cascadia.Selector
+	tags            cascadia.Selector
+	hatomPublished  cascadia.Selector
+	hatomUpdated    cascadia.Selector
 }{
+	cascadia.MustCompile(`time, .published, .updated`),
+	cascadia.MustCompile(`head meta`),
+	//cascadia.MustCompile(`time,p,span,div,li,td,th,h4,h5,h6,font`),
+	cascadia.MustCompile(`span`),
+	cascadia.MustCompile(`hentry .published`),
+	cascadia.MustCompile(`hentry .updated`),
+}
+
+var datePats = struct {
+	publishedIndicativeText *regexp.Regexp
+	updatedIndicativeText   *regexp.Regexp
+	urlDateFmts             []*regexp.Regexp // to get dates out of URLs
+	genericClasses          *regexp.Regexp
+	publishedClasses        *regexp.Regexp
+	updatedClasses          *regexp.Regexp
+}{
+	// publishedIndicativeText
+	regexp.MustCompile(`published|posted`),
+	// updatedIndicativeText
+	regexp.MustCompile(`updated|last modified`),
+	// urlDateFmts
 	[]*regexp.Regexp{
 		regexp.MustCompile(`/(?P<year>\d{4})/(?P<month>\d{1,2})/(?P<day>\d{1,2})/`),
 		regexp.MustCompile(`[^0-9](?P<year>\d{4})-(?P<month>\d{1,2})-(?P<day>\d{1,2})[^0-9]`),
 		// TODO: should accept YYYY/MM with missing day?
 	},
+	// genericClasses
+	regexp.MustCompile(`(?i)updated|date|time|fecha`),
+	// publishedClasses
+	regexp.MustCompile(`(?i)published`),
+	// updatedClasses
+	regexp.MustCompile(`(?i)modified|updated`),
 }
 
 // dateFromURl looks for an obvious date in the url
-func dateFromUrl(url string) (d fuzzytime.Date) {
+func dateFromUrl(url string) (d fuzzytime.DateTime) {
 
-	for _, pat := range pubdatePats.urlDateFmts {
+	for _, pat := range datePats.urlDateFmts {
 		m := pat.FindStringSubmatch(url)
 		if m != nil {
 			year, err := strconv.Atoi(m[1])
@@ -86,49 +92,24 @@ func dateFromUrl(url string) (d fuzzytime.Date) {
 	return
 }
 
-// machine readable times:
-// express
-// <time itemprop="datePublished" datetime="2013-05-05T21:35:22" class="published-date">
+/* TODO: some more <meta> tags, from cnn.com:
+   <meta name="pubdate" itemprop="datePublished" content="2013-05-07T10:45:16Z">
+   <meta name="lastmod" itemprop="dateModified" content="2013-05-07T10:55:21Z">
+   <meta itemprop="dateCreated" content="2013-05-07T10:45:16Z">
+*/
+// TODO: other meta tags?
+// "DCSext.articleFirstPublished"
+// "DC.date.issued"
+// "last-modified"
 
-var dateSels = struct {
-	machineReadable cascadia.Selector
-	meta            cascadia.Selector
-	tags            cascadia.Selector
-	hatomPublished  cascadia.Selector
-	hatomUpdated    cascadia.Selector
-}{
-	cascadia.MustCompile(`time, .published, .updated`),
-	cascadia.MustCompile(`head meta`),
-	cascadia.MustCompile(`time,p,span,div,li,td,th,h4,h5,h6,font`),
-	cascadia.MustCompile(`hentry .published`),
-	cascadia.MustCompile(`hentry .updated`),
-}
+// check meta tags for anything useful
+// eg
+// <meta property="article:published_time" content="2013-05-02" />
+// <meta content="2013-05-05T11:30:09Z" property="article:modified_time">
 
-var dateREs = struct {
-	publishedIndicative *regexp.Regexp
-	updatedIndicative   *regexp.Regexp
-}{
-	regexp.MustCompile(`published|posted`),
-	regexp.MustCompile(`updated|last modified`),
-}
-
-//
-func grabDates(root *html.Node, url string, dbug io.Writer) (string, error) {
-	var publishedCandidates = make(candidateList, 0, 32)
-	var updatedCandidates = make(candidateList, 0, 32)
-
-	urlDate := dateFromUrl(url)
-	if !urlDate.Empty() {
-		foo, err := urlDate.IsoFormat()
-		if err == nil {
-			return foo, nil
-		}
-	}
-
-	// check meta tags for anything useful
-	// eg
-	// <meta property="article:published_time" content="2013-05-02" />
-	// <meta content="2013-05-05T11:30:09Z" property="article:modified_time">
+// datesFromMeta checks for timestamps in <meta> tags.
+// returns published, updated
+func datesFromMeta(root *html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
 	metaPublished := fuzzytime.DateTime{}
 	metaUpdated := fuzzytime.DateTime{}
 	for _, node := range dateSels.meta.MatchAll(root) {
@@ -141,11 +122,29 @@ func grabDates(root *html.Node, url string, dbug io.Writer) (string, error) {
 			metaUpdated = fuzzytime.Extract(content)
 		}
 	}
+	return metaPublished, metaUpdated
+}
 
-	// TODO: other meta tags?
-	// "DCSext.articleFirstPublished"
-	// "DC.date.issued"
-	// "last-modified"
+// machine readable times:
+// express
+// <time itemprop="datePublished" datetime="2013-05-05T21:35:22" class="published-date">
+
+//
+//
+//
+func grabDates(root *html.Node, url string, contentNodes []*html.Node, dbug io.Writer) (fuzzytime.DateTime, fuzzytime.DateTime) {
+	var publishedCandidates = make(candidateList, 0, 32)
+	var updatedCandidates = make(candidateList, 0, 32)
+
+	// there might be an obvious date in the URL
+	urlDate := dateFromUrl(url)
+
+	// look for timestamps in <meta> tags
+	metaPublished, metaUpdated := datesFromMeta(root)
+
+	if metaPublished.HasFullDate() && metaUpdated.HasFullDate() {
+		return metaPublished, metaUpdated
+	}
 
 	for _, node := range dateSels.tags.MatchAll(root) {
 
@@ -187,8 +186,12 @@ func grabDates(root *html.Node, url string, dbug io.Writer) (string, error) {
 		}
 
 		// TEST: indicative text ("posted:" etc...)
-		if dateREs.publishedIndicative.MatchString(txt) {
+		if datePats.publishedIndicativeText.MatchString(txt) {
 			publishedC.addPoints(1, "indicative text")
+		}
+		// TEST: indicative text ("posted:" etc...)
+		if datePats.updatedIndicativeText.MatchString(txt) {
+			updatedC.addPoints(1, "indicative text")
 		}
 
 		// TEST: hAtom date markup
@@ -199,17 +202,62 @@ func grabDates(root *html.Node, url string, dbug io.Writer) (string, error) {
 			publishedC.addPoints(2, "hentry .updated")
 		}
 
-		// TODO: check against meta tags and url
-		/*
-			if !metaPublished.Empty() && !dt.Conflicts(&metaPublished) {
-				publishedC.addPoints(1, fmt.Sprintf("agrees with published date in <meta> %s vs %s", dt.String(), metaPublished.String()))
-			}
-			if !metaUpdated.Empty() && !dt.Conflicts(&metaUpdated) {
-				updatedC.addPoints(1, "agrees with updated date in <meta>")
-			}
-		*/
+		// TEST: likely class or id?
+		if datePats.genericClasses.MatchString(getAttr(node, "class")) {
+			updatedC.addPoints(1, "likely class")
+			publishedC.addPoints(1, "likely class")
+		}
+		if datePats.genericClasses.MatchString(getAttr(node, "id")) {
+			updatedC.addPoints(1, "likely id")
+			publishedC.addPoints(1, "likely id")
+		}
+		// TEST: likely class or id for published?
+		if datePats.publishedClasses.MatchString(getAttr(node, "class")) {
+			publishedC.addPoints(1, "likely class for published")
+		}
+		if datePats.publishedClasses.MatchString(getAttr(node, "id")) {
+			publishedC.addPoints(1, "likely id for published")
+		}
+		// TEST: likely class or id for updated?
+		if datePats.updatedClasses.MatchString(getAttr(node, "class")) {
+			updatedC.addPoints(1, "likely class for updated")
+		}
+		if datePats.updatedClasses.MatchString(getAttr(node, "id")) {
+			updatedC.addPoints(1, "likely id for updated")
+		}
 
-		// TODO: indicative ids and classes
+		// TEST: within article content?
+		for _, contentNode := range contentNodes {
+			if contains(contentNode, node) {
+				publishedC.addPoints(1, "contained within content")
+				updatedC.addPoints(1, "contained within content")
+			}
+		}
+		// TEST: share a parent with content?
+		for _, contentNode := range contentNodes {
+			if contains(contentNode.Parent, node) {
+				publishedC.addPoints(1, "near content")
+				updatedC.addPoints(1, "near content")
+			}
+		}
+
+		// TEST: matches date info in URL?
+		if !urlDate.Empty() {
+			if urlDate.HasYear() && dt.HasYear() && urlDate.Year() == dt.Year() {
+				updatedC.addPoints(1, "matches year in url")
+				publishedC.addPoints(1, "matches year in url")
+			}
+			if urlDate.HasMonth() && dt.HasMonth() && urlDate.Month() == dt.Month() {
+				updatedC.addPoints(1, "matches month in url")
+				publishedC.addPoints(1, "matches month in url")
+			}
+			if urlDate.HasDay() && dt.HasDay() && urlDate.Day() == dt.Day() {
+				updatedC.addPoints(1, "matches day in url")
+				publishedC.addPoints(1, "matches day in url")
+			}
+		}
+
+		// TODO: TEST: agrees with <meta> tag values?
 
 		// TODO: TEST - proximity to top or bottom of article content
 		// TODO: check for value-title pattern?
@@ -223,17 +271,35 @@ func grabDates(root *html.Node, url string, dbug io.Writer) (string, error) {
 
 	}
 
+	sort.Sort(Reverse{updatedCandidates})
 	fmt.Fprintf(dbug, "meta updated: '%s\n", metaUpdated.String())
 	fmt.Fprintf(dbug, "UPDATED: %d candidates\n", len(updatedCandidates))
 	for _, c := range updatedCandidates {
 		c.dump(dbug)
 	}
 
+	sort.Sort(Reverse{publishedCandidates})
 	fmt.Fprintf(dbug, "meta published: '%s\n", metaPublished.String())
 	fmt.Fprintf(dbug, "PUBLISHED: %d candidates\n", len(publishedCandidates))
 	for _, c := range publishedCandidates {
 		c.dump(dbug)
 	}
 
-	return "", errors.New("No pubdate found")
+	var published, updated fuzzytime.DateTime
+
+	if len(publishedCandidates) > 0 {
+		published = publishedCandidates[0].(*dateCandidate).dt
+	} else if !metaPublished.Empty() {
+		published = metaPublished
+	} else if !urlDate.Empty() {
+		published = urlDate
+	}
+
+	if metaUpdated.HasFullDate() {
+		updated = metaUpdated
+	} else if len(updatedCandidates) > 0 {
+		updated = updatedCandidates[0].(*dateCandidate).dt
+	}
+
+	return published, updated
 }

@@ -77,7 +77,7 @@ func grabContent(root *html.Node, dbug io.Writer) ([]*html.Node, candidateMap) {
 
 	var candidates = make(candidateMap)
 
-	stripUnlikelyCandidates := true
+	stripUnlikelyCandidates := false //true
 
 	/**
 	 * First, node prepping. Trash nodes that look cruddy (like ones with the class name "comment", etc), and turn divs
@@ -226,6 +226,11 @@ func grabContent(root *html.Node, dbug io.Writer) ([]*html.Node, candidateMap) {
 			contentNodes = append(contentNodes, siblingNode)
 		}
 
+	}
+
+	fmt.Fprintf(dbug, "got %d content nodes:\n", len(contentNodes))
+	for _, n := range contentNodes {
+		fmt.Fprintf(dbug, "  %s\n", describeNode(n))
 	}
 
 	return contentNodes, candidates
