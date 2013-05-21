@@ -30,7 +30,7 @@ import (
 
 // quote a string for yaml output
 func quote(s string) string {
-	if strings.Contains(s, `:`) {
+	if strings.ContainsAny(s, `:|`) {
 		if !strings.Contains(s, `"`) {
 			return fmt.Sprintf(`"%s"`, s)
 		} else {

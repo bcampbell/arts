@@ -82,6 +82,16 @@ func closest(n *html.Node, sel cascadia.Selector) *html.Node {
 	return n
 }
 
+// return a slice containing all the parents of this node up to root
+func parentNodes(n *html.Node) []*html.Node {
+	foo := make([]*html.Node, 0)
+	for n.Parent != nil {
+		n = n.Parent
+		foo = append(foo, n)
+	}
+	return foo
+}
+
 // contains returns true if is a descendant of container
 func contains(container *html.Node, n *html.Node) bool {
 	n = n.Parent

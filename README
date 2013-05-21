@@ -6,6 +6,6 @@ This means headline, authors, dates, text content etc...
 
 Work in progress.
 
-see tools/scrape.go for an example.
+see scrapetool/main.go for example.
 
 
