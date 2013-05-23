@@ -1,7 +1,6 @@
 package arts
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -22,14 +21,14 @@ func TestRateName(t *testing.T) {
 
 	for _, n := range names {
 		score := rateName(n)
-		fmt.Printf("%s: %f\n", n, score)
+		//fmt.Printf("%s: %f\n", n, score)
 		if score <= 0 {
 			t.Errorf(`rateName("%s") returned %f (expected>0)")`, n, score)
 		}
 	}
 	for _, n := range notNames {
 		score := rateName(n)
-		fmt.Printf("%s: %f\n", n, score)
+		//fmt.Printf("%s: %f\n", n, score)
 		if score > 0 {
 			t.Errorf(`rateName("%s") returned %f (expected<=0)")`, n, score)
 		}

@@ -3,6 +3,7 @@ package arts
 import (
 	"code.google.com/p/go.net/html"
 	"code.google.com/p/go.net/html/atom"
+	"errors"
 	"fmt"
 	"github.com/matrixik/goquery"
 	"io"
@@ -13,7 +14,7 @@ import (
 
 // TODO: phase out goquery - just use cascadia directly
 
-func grabHeadline(root *html.Node, art_url string, dbug io.Writer) string {
+func grabHeadline(root *html.Node, art_url string, dbug io.Writer) (string, *html.Node, error) {
 	doc := goquery.NewDocumentFromNode(root)
 
 	var candidates = make(candidateList, 0, 100)
@@ -130,7 +131,10 @@ func grabHeadline(root *html.Node, art_url string, dbug io.Writer) string {
 		c.dump(dbug)
 	}
 
-	return candidates[0].txt()
+	if len(candidates) > 0 {
+		return candidates[0].txt(), candidates[0].node(), nil
+	}
+	return "", nil, errors.New("couldn't find a headline")
 }
 
 func insideArticle(s *goquery.Selection) bool {

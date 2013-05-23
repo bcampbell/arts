@@ -6,6 +6,7 @@ import (
 	"code.google.com/p/go.net/html"
 	"fmt"
 	"io"
+	"strconv"
 
 //	"strings"
 )
@@ -25,7 +26,7 @@ type candidate interface {
 // debugging.
 // (at the end of processing, it's very useful to be able to see what
 // happened to a particular candidate along the way. Saves us the shotgun
-// approach of logging everything as it happens, then trying to read back
+// approach of logging everything as it happens then trying to read back
 // through it)
 type standardCandidate struct {
 	n      *html.Node
@@ -55,7 +56,7 @@ func (c *standardCandidate) total() float64 {
 
 // dump prints out a candidate and the scores it received for debugging
 func (c *standardCandidate) dump(out io.Writer) {
-	fmt.Fprintf(out, "%.3g %s '%s'\n", c.total(), describeNode(c.node()), c.txt())
+	fmt.Fprintf(out, "%.3g %s %s\n", c.total(), describeNode(c.node()), strconv.Quote(c.txt()))
 	for _, s := range c.log {
 		fmt.Fprintf(out, "  %s\n", s)
 	}

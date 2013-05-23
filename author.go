@@ -9,10 +9,44 @@ import (
 	"io"
 	"regexp"
 
-//	"sort"
+	"sort"
 
 //	"strings"
 )
+
+type authorCandidateMap map[*html.Node]candidate
+
+func (candidates *authorCandidateMap) accumulateScores() {
+	for _, c := range *candidates {
+		for _, p := range parentNodes(c.node()) {
+			if parentC, got := (*candidates)[p]; got {
+				parentC.addPoints(c.total(), fmt.Sprintf("likely-looking child (%s)", describeNode(c.node())))
+			}
+		}
+	}
+}
+
+func (candidates authorCandidateMap) findParents(c candidate) (out []candidate) {
+	n := c.node().Parent
+	for n != nil {
+		if parentC, got := (candidates)[n]; got {
+			out = append(out, parentC)
+		}
+		n = n.Parent
+	}
+	return
+}
+
+func (candidates authorCandidateMap) descendants(c candidate) []candidate {
+	out := make([]candidate, 0)
+
+	walkChildren(c.node(), func(n *html.Node) {
+		if descendant, got := candidates[n]; got {
+			out = append(out, descendant)
+		}
+	})
+	return out
+}
 
 var authorPats = struct {
 	bylineIndicativeText *regexp.Regexp
@@ -27,17 +61,26 @@ var bylineContainerPats = struct {
 	articleHeaderSel    cascadia.Selector
 	schemaOrgArticleSel cascadia.Selector
 	commentPat          *regexp.Regexp
+	cruftIndicative     *regexp.Regexp
 }{
 	regexp.MustCompile(`(?i)byline|by-line|by_line|author|writer|credits|storycredit|firma`),
 	cascadia.MustCompile("aside"),
 	cascadia.MustCompile("#sidebar, #side"),
 	cascadia.MustCompile("article header"),
 	cascadia.MustCompile(`[itemscope][itemtype="http://schema.org/Article"]`),
-	regexp.MustCompile(`(?i)comment|disqus|remark`),
+	regexp.MustCompile(`(?i)comment|disqus|livefyre|remark|conversation`),
+	regexp.MustCompile(`(?i)combx|comment|community|disqus|livefyre|menu|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|promo|sponsor|shopping|tweet|twitter`),
 }
 
-func rateBylineContainerNode(c candidate, contentNodes []*html.Node, dbug io.Writer) {
+func rateBylineContainerNode(c candidate, contentNodes []*html.Node, headlineNode *html.Node, dbug io.Writer) {
 	el := c.node()
+
+	// TEST: inside likely cruft? (sidebars, related-articles boxes etc)
+	for _, n := range parentNodes(el) {
+		if bylineContainerPats.cruftIndicative.MatchString(getAttr(n, "class")) || bylineContainerPats.cruftIndicative.MatchString(getAttr(n, "id")) {
+			c.addPoints(-3, fmt.Sprintf("inside cruft '%s'", describeNode(n)))
+		}
+	}
 
 	// TEST: likely other indicators in class/id?
 	if bylineContainerPats.likelyClassPat.MatchString(getAttr(el, "class")) {
@@ -47,49 +90,47 @@ func rateBylineContainerNode(c candidate, contentNodes []*html.Node, dbug io.Wri
 		c.addPoints(1, "indicative id")
 	}
 
-	// TEST: inside an obvious sidebar or <aside>?
-	if closest(el, bylineContainerPats.asideSel) != nil {
-		c.addPoints(-3, "contained within <aside>")
-	}
-	if closest(el, bylineContainerPats.sidebarSel) != nil {
-		c.addPoints(-3, "contained within #sidebar")
-	}
-
 	// TEST: within article container?
-	//        if insideArticle(s) {
-	//            c.addPoints(1,"within article container")
-	//        }
 	if closest(el, bylineContainerPats.articleHeaderSel) != nil {
 		c.addPoints(1, "contained within <article> <header>")
 	}
 
 	// TEST: inside schema.org article?
 	if closest(el, bylineContainerPats.schemaOrgArticleSel) != nil {
-		c.addPoints(2, "inside schema.org article")
+		c.addPoints(1, "inside schema.org article")
 	}
 
-	// TEST: within article content?
-	/*	for _, contentNode := range contentNodes {
-			if contains(contentNode, el) {
-				c.addPoints(1, "contained within content")
+	// TEST: proximity to headline
+	// TODO: these tests are borked, because they count text nodes too
+	/*
+		if headlineNode != nil {
+			if headlineNode.PrevSibling != nil {
+				if el == headlineNode.PrevSibling {
+					c.addPoints(3, "immediatedly before headline")
+				} else {
+					if el == headlineNode.PrevSibling.PrevSibling {
+						c.addPoints(1, "almost immediatedly before headline")
+					}
+				}
+			}
+
+			if headlineNode.NextSibling != nil {
+				if el == headlineNode.NextSibling {
+					c.addPoints(4, "immediatedly after headline")
+				} else {
+					if el == headlineNode.NextSibling.NextSibling {
+						c.addPoints(2, "almost immediatedly after headline")
+					}
+				}
 			}
 		}
 	*/
-
-	// TEST: at top or bottom of content?
-
-	// TEST: share a parent with content?
-	for _, contentNode := range contentNodes {
-		if contains(contentNode.Parent, el) {
-			c.addPoints(1, "near content")
-			break
-		}
-	}
-
 	// TEST: Indicative text? (eg "By...")
 	if authorPats.bylineIndicativeText.MatchString(c.txt()) {
 		c.addPoints(2, "indicative text")
 	}
+
+	// TODO: TEST: contains twitter id?
 }
 
 // rate node on how much it looks like an individual author
@@ -133,25 +174,10 @@ func rateAuthorNode(c candidate, contentNodes []*html.Node, dbug io.Writer) {
 		c.addPoints(1, "indicative id")
 	}
 
-	// TEST: likely other indicators in parents class/id?
-	/*
-		if likelyClassPat.MatchString(getAttr(el.Parent, "class")) {
-			c.addPoints(1, "parent has indicative class")
-		}
-		if likelyClassPat.MatchString(getAttr(el.Parent, "id")) {
-			c.addPoints(1, "parent has indicative id")
-		}
-	*/
-
 	// TEST: schema.org author
 	if itemPropAuthorSel.Match(el) {
 		c.addPoints(2, `itemprop="author"`)
 	}
-
-	// TEST: Indicative text? (eg "By...")
-	//	if authorPats.bylineIndicativeText.MatchString(c.txt()) {
-	//		c.addPoints(2, "indicative text")
-	//	}
 
 	//    TEST: looks like a name?
 	nameScore := rateName(c.txt())
@@ -160,11 +186,10 @@ func rateAuthorNode(c candidate, contentNodes []*html.Node, dbug io.Writer) {
 	}
 
 	// TODO:
-	//  test: adjacency to headline
-	//  test: adjacency to date
-	//  test: penalise for full sentance text
-	//  test: panalise bad urls (eg rel-tag)
-	//  test: check parent for indicative text
+	//  test: penalise for full sentence text (eg punctuation)
+	//  test: penalise for stopwords ("about" etc)
+	//  test: penalise if rel-tag
+	//  test: check for adjacent indicative text
 
 	// TEST: likely-looking link?
 	if el.DataAtom == atom.A {
@@ -175,33 +200,22 @@ func rateAuthorNode(c candidate, contentNodes []*html.Node, dbug io.Writer) {
 	}
 
 	// TEST: inside content, but not at immediate top or bottom
-	if getLinkDensity(el.Parent) < 0.75 {
-		c.addPoints(-2, "in block of text")
-	}
+	//	if getLinkDensity(el.Parent) < 0.75 {
+	//		c.addPoints(-2, "in block of text")
+	//	}
 }
 
-type authorCandidateMap map[*html.Node]candidate
-
-func (candidates *authorCandidateMap) accumulateScores() {
-	for _, c := range *candidates {
-		for _, p := range parentNodes(c.node()) {
-			if parentC, got := (*candidates)[p]; got {
-				parentC.addPoints(c.total(), fmt.Sprintf("likely-looking child (%s)", describeNode(c.node())))
-			}
-		}
-	}
-}
-
-func grabAuthors(root *html.Node, contentNodes []*html.Node, dbug io.Writer) []Author {
+func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.Node, dbug io.Writer) []Author {
 	var authors = make(authorCandidateMap)
 	var bylines = make(authorCandidateMap)
 
 	likelyElementSel := cascadia.MustCompile("a,p,span,div,li,h3,h4,h5,h6,td,strong")
 	// PASS ONE: look for any marked-up people (rel-author, hcard etc)
-	for _, el := range likelyElementSel.MatchAll(root) {
-		// look for structured bylines first (rel-author, hcard etc...)
-		//doc.Find(`a[rel="author"], .author, .byline`).Each( func(i int, s *goquery.Selection) {
 
+	// looking for:
+	//  - elements containing individual authors
+	//  - elements that look like byline containers
+	for _, el := range likelyElementSel.MatchAll(root) {
 		earlyOut := false
 		txt := compressSpace(getTextContent(el))
 		if len(txt) >= 150 {
@@ -225,49 +239,82 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, dbug io.Writer) []A
 			continue
 		}
 
+		// any good as an author?
 		authorC := newStandardCandidate(el, txt)
-		containerC := newStandardCandidate(el, txt)
 		rateAuthorNode(authorC, contentNodes, dbug)
-		rateBylineContainerNode(containerC, contentNodes, dbug)
 
-		if authorC.total() > 0 {
+		if authorC.total() >= 1 {
 			authors[authorC.node()] = authorC
 		}
+
+		// any good as a container?
+		containerC := newStandardCandidate(el, txt)
+		rateBylineContainerNode(containerC, contentNodes, headlineNode, dbug)
 		if containerC.total() > 0 {
 			bylines[containerC.node()] = containerC
 		}
 	}
 
-	// TODO: merge nested authors
-
-	// PASS TWO: give containers credit for any likely-looking authors
-	// they contain
-	for _, byline := range bylines {
-		for _, author := range authors {
-			if contains(byline.node(), author.node()) {
-				byline.addPoints(author.total(), fmt.Sprintf("likely-looking author (%s)", describeNode(author.node())))
-			}
+	// run over all the author candidates, and give them credit for their parents
+	for _, authorC := range authors {
+		descendants := authors.descendants(authorC)
+		if len(descendants) > 0 {
+			descendants[len(descendants)-1].addPoints(float64(len(descendants)), "likely-looking parent(s)")
 		}
 	}
 
-	//	sort.Sort(Reverse{candidates})
+	// PASS TWO: give containers credit for containing likely-looking authors
+	for _, byline := range bylines {
+		cnt := 0
+		for _, author := range authors {
+			if byline.node() == author.node() {
+				//byline.addPoints(1, "also a likely-looking author")
+			} else if contains(byline.node(), author.node()) {
+				cnt += 1
+			}
+		}
+		if cnt > 0 {
+			byline.addPoints(1, fmt.Sprintf("contains likely-looking author(s)"))
+		}
+	}
+
+	// TODO:
+	//  if no containers, promote best author
+	//  merge nested containers?
+
+	// extract authors inside best container
+
+	ranked := make(candidateList, len(bylines))
+	i := 0
+	for _, c := range bylines {
+		ranked[i] = c
+		i++
+	}
+	sort.Sort(Reverse{ranked})
 
 	fmt.Fprintf(dbug, "AUTHOR: %d candidates\n", len(authors))
 	for _, c := range authors {
 		c.dump(dbug)
 	}
-	fmt.Fprintf(dbug, "BYLINECONTAINERS: %d candidates\n", len(bylines))
-	for _, c := range bylines {
+	fmt.Fprintf(dbug, "BYLINECONTAINERS: %d candidates\n", len(ranked))
+	for _, c := range ranked {
 		c.dump(dbug)
 	}
-	/*
-		authors := make([]Author, 0, 4)
-		for _, c := range candidates {
-			if c.total() >= 2.0 {
-				author := Author{Name: c.txt()}
-				authors = append(authors, author)
-			}
-		}
-	*/
+
+	if len(ranked) > 0 {
+		return extractAuthors(ranked[0], authors)
+	}
 	return make([]Author, 0)
+}
+
+func extractAuthors(container candidate, authorCandidates authorCandidateMap) []Author {
+	extracted := make([]Author, 0)
+	for _, authorC := range authorCandidates {
+		if contains(container.node(), authorC.node()) {
+			a := Author{Name: authorC.txt()}
+			// TODO: extract vcard stuff, email, rel-author etc etc
+			extracted = append(extracted, a)
+		}
+	}
+	return extracted
 }

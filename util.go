@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -69,6 +70,15 @@ func getSlug(rawurl string) string {
 	}
 
 	return m[0]
+}
+
+// walkChildren iterates over all the descendants of root in top-down order,
+// invoking fn upon each one
+func walkChildren(root *html.Node, fn func(*html.Node)) {
+	for child := root.FirstChild; child != nil; child = child.NextSibling {
+		fn(child)
+		walkChildren(child, fn)
+	}
 }
 
 //
@@ -157,7 +167,7 @@ func describeNode(n *html.Node) string {
 		}
 		return "<" + desc + ">"
 	case html.TextNode:
-		return fmt.Sprintf("{TextNode} '%s'", n.Data)
+		return fmt.Sprintf("{TextNode} %s", strconv.Quote(n.Data))
 	case html.DocumentNode:
 		return "{DocumentNode}"
 	case html.CommentNode:

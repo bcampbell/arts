@@ -63,7 +63,7 @@ func removeScripts(root *html.Node) {
 	}
 }
 
-var unlikelyCandidates = regexp.MustCompile(`(?i)combx|comment|community|disqus|extra|foot|header|menu|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|tweet|twitter`)
+var unlikelyCandidates = regexp.MustCompile(`(?i)combx|comment|community|disqus|livefyre|extra|foot|header|menu|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|tweet|twitter`)
 var okMaybeItsACandidate = regexp.MustCompile(`(?i)and|article|body|column|main|shadow`)
 
 var positivePat = regexp.MustCompile(`(?i)article|body|content|entry|hentry|main|page|pagination|post|text|blog|story`)

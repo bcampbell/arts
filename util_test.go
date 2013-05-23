@@ -1,10 +1,11 @@
 package arts
 
 import (
-	"testing"
-	//	"os"
 	"code.google.com/p/go.net/html"
+	//	"fmt"
+	//	"os"
 	"strings"
+	"testing"
 )
 
 type StringTest struct {
@@ -64,3 +65,19 @@ func TestLinkDensity(t *testing.T) {
 		}
 	}
 }
+
+/*
+func TestWalkChildren(t *testing.T) {
+	htmlFragment := `<html>
+    <head>
+    <title>PageTitle</title>
+</head>
+<body>
+<p>paragraph one</p>
+<p>paragraph <a id="two">two</a>.</p>
+</body>
+</html>`
+	root, _ := html.Parse(strings.NewReader(htmlFragment))
+	walkChildren(root, func(n *html.Node) { fmt.Printf("%s\n", describeNode(n)) })
+}
+*/

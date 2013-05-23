@@ -70,15 +70,19 @@ func Extract(raw_html []byte, artUrl string, debugOutput bool) (*Article, error)
 		dbug = ioutil.Discard
 	}
 
-	html.Render(dbug, root)
+	//	html.Render(dbug, root)
 
 	removeScripts(root)
 	// extract any canonical or alternate urls
 	art.CanonicalUrl, art.AlternateUrls = grabUrls(root)
-	art.Headline = grabHeadline(root, artUrl, dbug)
+
+	headline, headlineNode, err := grabHeadline(root, artUrl, dbug)
+	if err == nil {
+		art.Headline = headline
+	}
 
 	contentNodes, contentScores := grabContent(root, dbug)
-	art.Authors = grabAuthors(root, contentNodes, dbug)
+	art.Authors = grabAuthors(root, contentNodes, headlineNode, dbug)
 	published, updated := grabDates(root, art.CanonicalUrl, contentNodes, dbug)
 	if !published.Empty() {
 		art.Published, _ = published.IsoFormat()
