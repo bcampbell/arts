@@ -113,11 +113,13 @@ func rateBylineContainerNode(c candidate, contentNodes []*html.Node, headlineNod
 				}
 				break
 			}
-			if n.Type == html.TextNode {
+			// count up any text we encounter which isn't part of the headline
+			if !contains(headlineNode, n) && n.Type == html.TextNode {
 				s := strings.TrimSpace(n.Data)
 				interveningChars += len(s)
 			}
 		}
+		//		c.addPoints(0, fmt.Sprintf("%d chars from %s", interveningChars, describeNode(headlineNode)))
 	}
 
 	// TEST: Indicative text? (eg "By...")
