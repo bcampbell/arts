@@ -185,3 +185,20 @@ func dumpTree(n *html.Node, depth int) {
 		dumpTree(child, depth+1)
 	}
 }
+
+// prevNode returns the previous node (ie walks backward in document order)
+func prevNode(n *html.Node) *html.Node {
+	if n.PrevSibling != nil {
+		for n = n.PrevSibling; n.LastChild != nil; n = n.LastChild {
+		}
+		return n
+	}
+	return n.Parent
+}
+
+var wordSplitPat *regexp.Regexp = regexp.MustCompile(`\b(\w+)\b`)
+
+func wordCount(s string) int {
+	m := wordSplitPat.FindAllString(s, -1)
+	return len(m)
+}

@@ -8,10 +8,8 @@ import (
 	"code.google.com/p/cascadia"
 	"io"
 	"regexp"
-
 	"sort"
-
-//	"strings"
+	"strings"
 )
 
 type authorCandidateMap map[*html.Node]candidate
@@ -101,30 +99,27 @@ func rateBylineContainerNode(c candidate, contentNodes []*html.Node, headlineNod
 	}
 
 	// TEST: proximity to headline
-	// TODO: these tests are borked, because they count text nodes too
-	/*
-		if headlineNode != nil {
-			if headlineNode.PrevSibling != nil {
-				if el == headlineNode.PrevSibling {
-					c.addPoints(3, "immediatedly before headline")
-				} else {
-					if el == headlineNode.PrevSibling.PrevSibling {
-						c.addPoints(1, "almost immediatedly before headline")
-					}
-				}
+	if headlineNode != nil {
+		interveningChars := 0
+		n := el
+		for {
+			n = prevNode(n)
+			if n == nil {
+				break
 			}
-
-			if headlineNode.NextSibling != nil {
-				if el == headlineNode.NextSibling {
-					c.addPoints(4, "immediatedly after headline")
-				} else {
-					if el == headlineNode.NextSibling.NextSibling {
-						c.addPoints(2, "almost immediatedly after headline")
-					}
+			if n == headlineNode {
+				if interveningChars == 0 {
+					c.addPoints(2, "adjacent to headline")
 				}
+				break
+			}
+			if n.Type == html.TextNode {
+				s := strings.TrimSpace(n.Data)
+				interveningChars += len(s)
 			}
 		}
-	*/
+	}
+
 	// TEST: Indicative text? (eg "By...")
 	if authorPats.bylineIndicativeText.MatchString(c.txt()) {
 		c.addPoints(2, "indicative text")

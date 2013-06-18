@@ -70,28 +70,30 @@ func grabHeadline(root *html.Node, art_url string, dbug io.Writer) (string, *htm
 		}
 
 		if len(cooked_txt) > 0 {
-			// TEST: appears in page <title>?
-			if strings.Contains(cooked_title, cooked_txt) {
-				c.addPoints(3, "appears in <title>")
-			}
-
-			// TEST: appears in og:title?
-			if strings.Contains(cooked_og_title, cooked_txt) {
-				c.addPoints(3, "appears in og:title")
-			}
-
-			// TEST: appears in slug?
-			var matches int = 0
-			parts := strings.Split(cooked_txt, " ")
-			if len(parts) > 1 {
-				for _, part := range parts {
-					if strings.Contains(cooked_slug, part) {
-						matches += 1
-					}
+			if wordCount(cooked_txt) >= 3 {
+				// TEST: appears in page <title>?
+				if strings.Contains(cooked_title, cooked_txt) {
+					c.addPoints(3, "appears in <title>")
 				}
-				var value float64 = float64(5*matches) / float64(len(parts))
-				if value > 0 {
-					c.addPoints(value, "match slug")
+
+				// TEST: appears in og:title?
+				if strings.Contains(cooked_og_title, cooked_txt) {
+					c.addPoints(3, "appears in og:title")
+				}
+
+				// TEST: appears in slug?
+				var matches int = 0
+				parts := strings.Split(cooked_txt, " ")
+				if len(parts) > 1 {
+					for _, part := range parts {
+						if strings.Contains(cooked_slug, part) {
+							matches += 1
+						}
+					}
+					var value float64 = float64(5*matches) / float64(len(parts))
+					if value > 0 {
+						c.addPoints(value, "match slug")
+					}
 				}
 			}
 		}

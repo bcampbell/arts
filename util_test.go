@@ -1,6 +1,7 @@
 package arts
 
 import (
+	//	"code.google.com/p/cascadia"
 	"code.google.com/p/go.net/html"
 	//	"fmt"
 	//	"os"
@@ -66,18 +67,43 @@ func TestLinkDensity(t *testing.T) {
 	}
 }
 
+// test for prevNode()
 /*
-func TestWalkChildren(t *testing.T) {
+func TestPrevNode(t *testing.T) {
 	htmlFragment := `<html>
     <head>
     <title>PageTitle</title>
 </head>
 <body>
-<p>paragraph one</p>
+<p>paragraph one <span>one</span></p>
 <p>paragraph <a id="two">two</a>.</p>
 </body>
 </html>`
 	root, _ := html.Parse(strings.NewReader(htmlFragment))
-	walkChildren(root, func(n *html.Node) { fmt.Printf("%s\n", describeNode(n)) })
+	sel := cascadia.MustCompile("#two")
+	n := sel.MatchAll(root)[0]
+	fmt.Printf("%s\n------\n", htmlFragment)
+	for ; n != nil; n = prevNode(n) {
+		fmt.Printf("%s\n", describeNode(n))
+	}
 }
 */
+
+func TestWordCount(t *testing.T) {
+	testData := []struct {
+		s        string
+		expected int
+	}{
+		{``, 0},
+		{`simple`, 1},
+		{"some\nlines\nof\ntext.\n", 4},
+		{`  some surrounding space   `, 3},
+	}
+	for _, dat := range testData {
+		got := wordCount(dat.s)
+		if got != dat.expected {
+			t.Errorf("wordCount('%s') = %v (expected %v)", dat.s, got, dat.expected)
+		}
+	}
+
+}
