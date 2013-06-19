@@ -4,9 +4,7 @@ import (
 	"code.google.com/p/go.net/html"
 	"code.google.com/p/go.net/html/atom"
 	"errors"
-	"fmt"
 	"github.com/matrixik/goquery"
-	"io"
 	"regexp"
 	"sort"
 	"strings"
@@ -14,7 +12,8 @@ import (
 
 // TODO: phase out goquery - just use cascadia directly
 
-func grabHeadline(root *html.Node, art_url string, dbug io.Writer) (string, *html.Node, error) {
+func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
+	dbug := Debug.HeadlineLogger
 	doc := goquery.NewDocumentFromNode(root)
 
 	var candidates = make(candidateList, 0, 100)
@@ -124,7 +123,7 @@ func grabHeadline(root *html.Node, art_url string, dbug io.Writer) (string, *htm
 
 	sort.Sort(Reverse{candidates})
 
-	fmt.Fprintf(dbug, "HEADLINE %d candidates\n", len(candidates))
+	dbug.Printf("HEADLINE %d candidates\n", len(candidates))
 	// show the top ten, with reasons
 	if len(candidates) > 10 {
 		candidates = candidates[0:10]

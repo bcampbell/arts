@@ -5,7 +5,7 @@ package arts
 import (
 	"code.google.com/p/go.net/html"
 	"fmt"
-	"io"
+	"log"
 	"strconv"
 
 //	"strings"
@@ -15,7 +15,7 @@ type candidate interface {
 	addPoints(value float64, desc string)
 	scalePoints(scaleFactor float64, desc string)
 	total() float64
-	dump(out io.Writer)
+	dump(out *log.Logger)
 	txt() string
 	node() *html.Node
 }
@@ -55,10 +55,10 @@ func (c *standardCandidate) total() float64 {
 }
 
 // dump prints out a candidate and the scores it received for debugging
-func (c *standardCandidate) dump(out io.Writer) {
-	fmt.Fprintf(out, "%.3g %s %s\n", c.total(), describeNode(c.node()), strconv.Quote(c.txt()))
+func (c *standardCandidate) dump(out *log.Logger) {
+	out.Printf("%.3g %s %s\n", c.total(), describeNode(c.node()), strconv.Quote(c.txt()))
 	for _, s := range c.log {
-		fmt.Fprintf(out, "  %s\n", s)
+		out.Printf("  %s\n", s)
 	}
 }
 

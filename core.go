@@ -6,13 +6,13 @@ import (
 	"bytes"
 	"code.google.com/p/go.net/html"
 	"io"
-	"os"
 	"regexp"
 	"strings"
 	//	"fmt"
 	"code.google.com/p/go-charset/charset"
 	_ "code.google.com/p/go-charset/data"
 	"io/ioutil"
+	"log"
 )
 
 type Author struct {
@@ -44,7 +44,20 @@ type Article struct {
 // - expected location/timezone
 // - expected language
 
-func Extract(raw_html []byte, artUrl string, debugOutput bool) (*Article, error) {
+// Debug is the global debug control for the scraper. Set up any loggers you want before calling Extract()
+// By default all logging is suppressed.
+var Debug = struct {
+	// HeadlineLogger is where debug output from the headline extraction will be sent
+	HeadlineLogger *log.Logger
+	// AuthorsLogger is where debug output from the author extraction will be sent
+	AuthorsLogger *log.Logger
+	// ContentLogger is where debug output from the content extraction will be sent
+	ContentLogger *log.Logger
+	// DatesLogger is where debug output from the pubdate/lastupdated extraction will be sent
+	DatesLogger *log.Logger
+}{}
+
+func Extract(raw_html []byte, artUrl string) (*Article, error) {
 	enc := findCharset("", raw_html)
 	var r io.Reader
 	r = strings.NewReader(string(raw_html))
@@ -63,11 +76,18 @@ func Extract(raw_html []byte, artUrl string, debugOutput bool) (*Article, error)
 		return nil, err
 	}
 
-	var dbug io.Writer
-	if debugOutput {
-		dbug = os.Stderr
-	} else {
-		dbug = ioutil.Discard
+	// fill in any missing loggers to discard
+	if Debug.HeadlineLogger == nil {
+		Debug.HeadlineLogger = log.New(ioutil.Discard, "", 0)
+	}
+	if Debug.AuthorsLogger == nil {
+		Debug.AuthorsLogger = log.New(ioutil.Discard, "", 0)
+	}
+	if Debug.ContentLogger == nil {
+		Debug.ContentLogger = log.New(ioutil.Discard, "", 0)
+	}
+	if Debug.DatesLogger == nil {
+		Debug.DatesLogger = log.New(ioutil.Discard, "", 0)
 	}
 
 	//	html.Render(dbug, root)
@@ -76,14 +96,14 @@ func Extract(raw_html []byte, artUrl string, debugOutput bool) (*Article, error)
 	// extract any canonical or alternate urls
 	art.CanonicalUrl, art.AlternateUrls = grabUrls(root)
 
-	headline, headlineNode, err := grabHeadline(root, artUrl, dbug)
+	headline, headlineNode, err := grabHeadline(root, artUrl)
 	if err == nil {
 		art.Headline = headline
 	}
 
-	contentNodes, contentScores := grabContent(root, dbug)
-	art.Authors = grabAuthors(root, contentNodes, headlineNode, dbug)
-	published, updated := grabDates(root, art.CanonicalUrl, contentNodes, dbug)
+	contentNodes, contentScores := grabContent(root)
+	art.Authors = grabAuthors(root, contentNodes, headlineNode)
+	published, updated := grabDates(root, art.CanonicalUrl, contentNodes)
 	if !published.Empty() {
 		art.Published, _ = published.IsoFormat()
 	}

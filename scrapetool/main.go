@@ -22,6 +22,7 @@ import (
 	"github.com/bcampbell/arts"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -44,7 +45,8 @@ func quote(s string) string {
 }
 
 func main() {
-	var debug = flag.Bool("d", false, "log debug info to stderr")
+	var debug string
+	flag.StringVar(&debug, "d", "", "log debug info to stderr (h=headline, c=content, a=authors d=dates all=hcad)")
 	flag.Parse()
 
 	if len(flag.Args()) != 1 {
@@ -56,6 +58,27 @@ func main() {
 	u, err := url.Parse(artURL)
 	if err != nil {
 		panic(err)
+	}
+
+	// set up the debug logging
+	debug = strings.ToLower(debug)
+	if debug == "name" {
+		debug = ""
+	}
+	if debug == "all" {
+		debug = "hcad"
+	}
+	for _, flag := range debug {
+		switch flag {
+		case 'h':
+			arts.Debug.HeadlineLogger = log.New(os.Stderr, "", 0)
+		case 'c':
+			arts.Debug.ContentLogger = log.New(os.Stderr, "", 0)
+		case 'a':
+			arts.Debug.AuthorsLogger = log.New(os.Stderr, "", 0)
+		case 'd':
+			arts.Debug.DatesLogger = log.New(os.Stderr, "", 0)
+		}
 	}
 
 	var in io.ReadCloser
@@ -77,7 +100,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	art, err := arts.Extract(raw_html, artURL, *debug)
+
+	art, err := arts.Extract(raw_html, artURL)
 	if err != nil {
 		panic(err)
 	}

@@ -14,12 +14,10 @@ import (
 	"code.google.com/p/cascadia"
 	"code.google.com/p/go.net/html"
 	"code.google.com/p/go.net/html/atom"
-	"fmt"
 	//	"github.com/matrixik/goquery"
 	"math"
 	"regexp"
 	//	"sort"
-	"io"
 	"strings"
 )
 
@@ -73,8 +71,8 @@ var negativePat = regexp.MustCompile(`(?i)combx|comment|com-|contact|foot|footer
 // Returns a slice of node pointers (in order), and a map containing all
 // the content scores calculated. The scores can be used in a later pass to help
 // remove cruft nodes in the text (eg share/like buttons etc)
-func grabContent(root *html.Node, dbug io.Writer) ([]*html.Node, candidateMap) {
-
+func grabContent(root *html.Node) ([]*html.Node, candidateMap) {
+	dbug := Debug.ContentLogger
 	var candidates = make(candidateMap)
 
 	stripUnlikelyCandidates := false //true
@@ -96,7 +94,7 @@ func grabContent(root *html.Node, dbug io.Writer) ([]*html.Node, candidateMap) {
 			if unlikelyCandidates.MatchString(unlikelyMatchString) == true &&
 				okMaybeItsACandidate.MatchString(unlikelyMatchString) == false &&
 				node.DataAtom != atom.Body {
-				fmt.Fprintf(dbug, "Removing unlikely candidate - %s\n", describeNode(node))
+				dbug.Printf("Removing unlikely candidate - %s\n", describeNode(node))
 				node.Parent.RemoveChild(node)
 				continue
 			}
@@ -108,7 +106,7 @@ func grabContent(root *html.Node, dbug io.Writer) ([]*html.Node, candidateMap) {
 		/* XYZZY TODO: Turn all divs that don't have children block level elements into p's */
 	}
 
-	fmt.Fprintf(dbug, "%d nodes to score\n", len(nodesToScore))
+	dbug.Printf("%d nodes to score\n", len(nodesToScore))
 
 	/*
 	 * Loop through all paragraphs, and assign a score to them based on how content-y they look.
@@ -228,9 +226,9 @@ func grabContent(root *html.Node, dbug io.Writer) ([]*html.Node, candidateMap) {
 
 	}
 
-	fmt.Fprintf(dbug, "got %d content nodes:\n", len(contentNodes))
+	dbug.Printf("got %d content nodes:\n", len(contentNodes))
 	for _, n := range contentNodes {
-		fmt.Fprintf(dbug, "  %s\n", describeNode(n))
+		dbug.Printf("  %s\n", describeNode(n))
 	}
 
 	return contentNodes, candidates

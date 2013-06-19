@@ -3,10 +3,8 @@ package arts
 import (
 	"code.google.com/p/go.net/html"
 	"code.google.com/p/go.net/html/atom"
-	"fmt"
 	//"github.com/matrixik/goquery"
 	"code.google.com/p/cascadia"
-	"io"
 	"regexp"
 	"sort"
 	//	"strings"
@@ -132,7 +130,8 @@ func datesFromMeta(root *html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
 //
 //
 //
-func grabDates(root *html.Node, url string, contentNodes []*html.Node, dbug io.Writer) (fuzzytime.DateTime, fuzzytime.DateTime) {
+func grabDates(root *html.Node, url string, contentNodes []*html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
+	dbug := Debug.DatesLogger
 	var publishedCandidates = make(candidateList, 0, 32)
 	var updatedCandidates = make(candidateList, 0, 32)
 
@@ -272,15 +271,15 @@ func grabDates(root *html.Node, url string, contentNodes []*html.Node, dbug io.W
 	}
 
 	sort.Sort(Reverse{updatedCandidates})
-	fmt.Fprintf(dbug, "meta updated: '%s\n", metaUpdated.String())
-	fmt.Fprintf(dbug, "UPDATED: %d candidates\n", len(updatedCandidates))
+	dbug.Printf("meta updated: '%s\n", metaUpdated.String())
+	dbug.Printf("UPDATED: %d candidates\n", len(updatedCandidates))
 	for _, c := range updatedCandidates {
 		c.dump(dbug)
 	}
 
 	sort.Sort(Reverse{publishedCandidates})
-	fmt.Fprintf(dbug, "meta published: '%s\n", metaPublished.String())
-	fmt.Fprintf(dbug, "PUBLISHED: %d candidates\n", len(publishedCandidates))
+	dbug.Printf("meta published: '%s\n", metaPublished.String())
+	dbug.Printf("PUBLISHED: %d candidates\n", len(publishedCandidates))
 	for _, c := range publishedCandidates {
 		c.dump(dbug)
 	}

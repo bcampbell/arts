@@ -6,7 +6,6 @@ import (
 	"fmt"
 	//"github.com/matrixik/goquery"
 	"code.google.com/p/cascadia"
-	"io"
 	"regexp"
 	"sort"
 	"strings"
@@ -70,7 +69,7 @@ var bylineContainerPats = struct {
 	regexp.MustCompile(`(?i)combx|comment|community|disqus|livefyre|menu|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|promo|sponsor|shopping|tweet|twitter`),
 }
 
-func rateBylineContainerNode(c candidate, contentNodes []*html.Node, headlineNode *html.Node, dbug io.Writer) {
+func rateBylineContainerNode(c candidate, contentNodes []*html.Node, headlineNode *html.Node) {
 	el := c.node()
 
 	// TEST: inside likely cruft? (sidebars, related-articles boxes etc)
@@ -131,7 +130,7 @@ func rateBylineContainerNode(c candidate, contentNodes []*html.Node, headlineNod
 }
 
 // rate node on how much it looks like an individual author
-func rateAuthorNode(c candidate, contentNodes []*html.Node, dbug io.Writer) {
+func rateAuthorNode(c candidate, contentNodes []*html.Node) {
 	el := c.node()
 
 	hentrySel := cascadia.MustCompile(".hentry")
@@ -202,7 +201,8 @@ func rateAuthorNode(c candidate, contentNodes []*html.Node, dbug io.Writer) {
 	//	}
 }
 
-func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.Node, dbug io.Writer) []Author {
+func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.Node) []Author {
+	dbug := Debug.AuthorsLogger
 	var authors = make(authorCandidateMap)
 	var bylines = make(authorCandidateMap)
 
@@ -238,7 +238,7 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.
 
 		// any good as an author?
 		authorC := newStandardCandidate(el, txt)
-		rateAuthorNode(authorC, contentNodes, dbug)
+		rateAuthorNode(authorC, contentNodes)
 
 		if authorC.total() >= 1 {
 			authors[authorC.node()] = authorC
@@ -246,7 +246,7 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.
 
 		// any good as a container?
 		containerC := newStandardCandidate(el, txt)
-		rateBylineContainerNode(containerC, contentNodes, headlineNode, dbug)
+		rateBylineContainerNode(containerC, contentNodes, headlineNode)
 		if containerC.total() > 0 {
 			bylines[containerC.node()] = containerC
 		}
@@ -289,11 +289,11 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.
 	}
 	sort.Sort(Reverse{ranked})
 
-	fmt.Fprintf(dbug, "AUTHOR: %d candidates\n", len(authors))
+	dbug.Printf("AUTHOR: %d candidates\n", len(authors))
 	for _, c := range authors {
 		c.dump(dbug)
 	}
-	fmt.Fprintf(dbug, "BYLINECONTAINERS: %d candidates\n", len(ranked))
+	dbug.Printf("BYLINECONTAINERS: %d candidates\n", len(ranked))
 	for _, c := range ranked {
 		c.dump(dbug)
 	}
