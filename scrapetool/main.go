@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime/pprof"
 	"strings"
 )
 
@@ -47,6 +48,7 @@ func quote(s string) string {
 func main() {
 	var debug string
 	flag.StringVar(&debug, "d", "", "log debug info to stderr (h=headline, c=content, a=authors d=dates all=hcad)")
+	var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	flag.Parse()
 
 	if len(flag.Args()) != 1 {
@@ -58,6 +60,15 @@ func main() {
 	u, err := url.Parse(artURL)
 	if err != nil {
 		panic(err)
+	}
+
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
 	}
 
 	// set up the debug logging
