@@ -5,6 +5,7 @@ import (
 	"code.google.com/p/go.net/html"
 	//	"fmt"
 	//	"os"
+	"math"
 	"strings"
 	"testing"
 )
@@ -35,6 +36,7 @@ var slugtests = []StringTest{
 	{"http://example.com/this-is-a-slug", "this-is-a-slug"},
 	{"http://example.com/strip-the-suffix.html", "strip-the-suffix"},
 	{"http://example.com/WIBBLE_Foo#bar", "WIBBLE_Foo"},
+	{"http://www.stuff.co.nz/southland-times/business/8822601/Mataura-briquetting-plant-on-market", "Mataura-briquetting-plant-on-market"},
 }
 
 func TestGetSlug(t *testing.T) {
@@ -106,4 +108,27 @@ func TestWordCount(t *testing.T) {
 		}
 	}
 
+}
+
+func TestJaccardWordCompare(t *testing.T) {
+	testData := []struct {
+		needle   string
+		haystack string
+		expected float64
+	}{
+		{"full match", "full match", 1},
+		{"order ignored", "ignored order", 1},
+		{"case SENSITIVE", "CASE sensitive", 0},
+		{"no match at all", "fishy fishy fishy", 0},
+		{"one two", "one", 0.5},
+		{"half of a match", "half of wibble pibble", 0.333333},
+		{"sub set of words", "should match a sub set of words even if surrounded", 0.4},
+		{"most words matching but not", "most words matching but not all", 0.83333},
+	}
+	for _, dat := range testData {
+		got := jaccardWordCompare(dat.haystack, dat.needle)
+		if math.Abs(dat.expected-got) > 0.001 {
+			t.Errorf("jaccardWordCompare('%s','%s') = %v (expected %v)", dat.haystack, dat.needle, got, dat.expected)
+		}
+	}
 }

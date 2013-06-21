@@ -7,7 +7,8 @@ import (
 	"github.com/matrixik/goquery"
 	"regexp"
 	"sort"
-	"strings"
+
+//	"strings"
 )
 
 // TODO: phase out goquery - just use cascadia directly
@@ -20,7 +21,8 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 
 	indicative := regexp.MustCompile(`(?i)entry-title|headline|title`)
 
-	cooked_slug := toAlphanumeric(regexp.MustCompile("[-_]+").ReplaceAllLiteralString(getSlug(art_url), ""))
+	cooked_slug := toAlphanumeric(regexp.MustCompile("[-_]+").ReplaceAllLiteralString(getSlug(art_url), " "))
+	dbug.Printf("slug: '%s'\n", cooked_slug)
 
 	cooked_title := toAlphanumeric(doc.Find("head title").Text())
 	og_title, foo := doc.Find(`head meta[property="og:title"]`).Attr("content")
@@ -70,29 +72,23 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 
 		if len(cooked_txt) > 0 {
 			if wordCount(cooked_txt) >= 3 {
+
 				// TEST: appears in page <title>?
-				if strings.Contains(cooked_title, cooked_txt) {
-					c.addPoints(3, "appears in <title>")
+				{
+					value := jaccardWordCompare(cooked_txt, cooked_title)
+					c.addPoints((value*4)-1, "score against <title>")
 				}
 
-				// TEST: appears in og:title?
-				if strings.Contains(cooked_og_title, cooked_txt) {
-					c.addPoints(3, "appears in og:title")
+				if cooked_og_title != "" {
+					// TEST: like og:title?
+					value := jaccardWordCompare(cooked_txt, cooked_og_title)
+					c.addPoints((value*4)-1, "score against og::title")
 				}
 
-				// TEST: appears in slug?
-				var matches int = 0
-				parts := strings.Split(cooked_txt, " ")
-				if len(parts) > 1 {
-					for _, part := range parts {
-						if strings.Contains(cooked_slug, part) {
-							matches += 1
-						}
-					}
-					var value float64 = float64(5*matches) / float64(len(parts))
-					if value > 0 {
-						c.addPoints(value, "match slug")
-					}
+				// TEST: like the slug?
+				if cooked_slug != "" {
+					value := jaccardWordCompare(cooked_txt, cooked_slug)
+					c.addPoints((value*4)-1, "score against slug")
 				}
 			}
 		}
@@ -125,9 +121,9 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 
 	dbug.Printf("HEADLINE %d candidates\n", len(candidates))
 	// show the top ten, with reasons
-	if len(candidates) > 10 {
-		candidates = candidates[0:10]
-	}
+	//	if len(candidates) > 20 {
+	//		candidates = candidates[0:20]
+	//	}
 	for _, c := range candidates {
 		c.dump(dbug)
 	}

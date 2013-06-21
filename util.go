@@ -63,13 +63,13 @@ func getSlug(rawurl string) string {
 	if err != nil {
 		return ""
 	}
-	slugpat := regexp.MustCompile(`((?:[a-zA-Z0-9]+[-_])+[a-zA-Z0-9]+)`)
+	slugpat := regexp.MustCompile(`(?i)((?:[a-z0-9]+[-_])+(?:[a-z0-9]+?))(?:[.][a-z0-9]{3,5})?$`)
 	m := slugpat.FindStringSubmatch(o.Path)
 	if m == nil {
 		return ""
 	}
 
-	return m[0]
+	return m[1]
 }
 
 // walkChildren iterates over all the descendants of root in top-down order,
@@ -201,4 +201,31 @@ var wordSplitPat *regexp.Regexp = regexp.MustCompile(`\b(\w+)\b`)
 func wordCount(s string) int {
 	m := wordSplitPat.FindAllString(s, -1)
 	return len(m)
+}
+
+// jaccardWordCompare compares strings based on the words they contain
+// returns a value between 0 (no match) and 1 (perfect match)
+// Calculates the Jaccard index on the sets of words each string contains.
+// https://en.wikipedia.org/wiki/Jaccard_index
+func jaccardWordCompare(a string, b string) float64 {
+	aWords := wordSplitPat.FindAllString(a, -1)
+	bWords := wordSplitPat.FindAllString(b, -1)
+	lookup := make(map[string]bool)
+	for _, word := range aWords {
+		lookup[word] = true
+	}
+
+	var intersectCnt float64 = 0
+	for _, word := range bWords {
+		if _, exists := lookup[word]; exists {
+			intersectCnt++
+		}
+	}
+
+	// now add the rest of the words to the lookup to calculate the union
+	for _, word := range bWords {
+		lookup[word] = true
+	}
+	unionCnt := float64(len(lookup))
+	return intersectCnt / unionCnt
 }
