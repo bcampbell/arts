@@ -47,14 +47,17 @@ func (candidates authorCandidateMap) descendants(c candidate) []candidate {
 
 var authorPats = struct {
 	bylineIndicativeText *regexp.Regexp
+	likelyClassPat       *regexp.Regexp
 }{
 	regexp.MustCompile(`(?i)^\s*\b(by|text by|posted by|written by|exclusive by|reviewed by|report|published by|photographs by|von)\b[:]?\s*`),
+	regexp.MustCompile(`(?i)name|byline|by-line|by_line|author|writer|credits|storycredit|firma`),
 }
 
 var bylineContainerPats = struct {
 	likelyClassPat      *regexp.Regexp
 	asideSel            cascadia.Selector
 	sidebarSel          cascadia.Selector
+	standfirstPat       *regexp.Regexp
 	articleHeaderSel    cascadia.Selector
 	schemaOrgArticleSel cascadia.Selector
 	commentPat          *regexp.Regexp
@@ -63,10 +66,11 @@ var bylineContainerPats = struct {
 	regexp.MustCompile(`(?i)byline|by-line|by_line|author|writer|credits|storycredit|firma`),
 	cascadia.MustCompile("aside"),
 	cascadia.MustCompile("#sidebar, #side"),
+	regexp.MustCompile(`(?i)stand-first|standfirst|kicker|dek|articleTagline|tagline`), // also sub-heading, sub-hed, deck?
 	cascadia.MustCompile("article header"),
 	cascadia.MustCompile(`[itemscope][itemtype="http://schema.org/Article"]`),
 	regexp.MustCompile(`(?i)comment|disqus|livefyre|remark|conversation`),
-	regexp.MustCompile(`(?i)combx|comment|community|disqus|livefyre|menu|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|promo|sponsor|shopping|tweet|twitter`),
+	regexp.MustCompile(`(?i)\b(?:combx|comment|community|disqus|livefyre|menu|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|promo|sponsor|shopping|tweet|twitter|facebook)\b`),
 }
 
 func rateBylineContainerNode(c candidate, contentNodes []*html.Node, headlineNode *html.Node) {
@@ -78,12 +82,24 @@ func rateBylineContainerNode(c candidate, contentNodes []*html.Node, headlineNod
 			c.addPoints(-3, fmt.Sprintf("inside cruft '%s'", describeNode(n)))
 		}
 	}
+	elClass := getAttr(el, "class")
+	elId := getAttr(el, "id")
+
+	// TEST: is cruft itself?
+	if bylineContainerPats.cruftIndicative.MatchString(getAttr(el, "class")) || bylineContainerPats.cruftIndicative.MatchString(getAttr(el, "id")) {
+		c.addPoints(-3, fmt.Sprintf("looks like cruft"))
+	}
+
+	// TEST: is it a standfirst?
+	if bylineContainerPats.standfirstPat.MatchString(elClass + " " + elId) {
+		c.addPoints(-3, fmt.Sprintf("looks like standfirst"))
+	}
 
 	// TEST: likely other indicators in class/id?
-	if bylineContainerPats.likelyClassPat.MatchString(getAttr(el, "class")) {
+	if bylineContainerPats.likelyClassPat.MatchString(elClass) {
 		c.addPoints(1, "indicative class")
 	}
-	if bylineContainerPats.likelyClassPat.MatchString(getAttr(el, "id")) {
+	if bylineContainerPats.likelyClassPat.MatchString(elId) {
 		c.addPoints(1, "indicative id")
 	}
 
@@ -99,7 +115,14 @@ func rateBylineContainerNode(c candidate, contentNodes []*html.Node, headlineNod
 
 	// TEST: proximity to headline
 	if headlineNode != nil {
+		// TEST: in same container as headline?
+		if contains(headlineNode.Parent, el) {
+			c.addPoints(1, "contained by parent of headline")
+		}
+
+		// TEST: how much text between headline and here?
 		interveningChars := 0
+		elementCount := 0
 		n := el
 		for {
 			n = prevNode(n)
@@ -112,11 +135,20 @@ func rateBylineContainerNode(c candidate, contentNodes []*html.Node, headlineNod
 				}
 				break
 			}
-			// count up any text we encounter which isn't part of the headline
-			if !contains(headlineNode, n) && n.Type == html.TextNode {
+			// count up any text we encounter which isn't part of the headline or a standfirst
+			if !contains(headlineNode, n) &&
+				n.Type == html.TextNode &&
+				!bylineContainerPats.standfirstPat.MatchString(getAttr(n.Parent, "class")+" "+getAttr(n.Parent, "id")) {
 				s := strings.TrimSpace(n.Data)
 				interveningChars += len(s)
 			}
+			if n.Type == html.ElementNode {
+				elementCount++
+				if elementCount > 8 {
+					break
+				}
+			}
+
 		}
 		//		c.addPoints(0, fmt.Sprintf("%d chars from %s", interveningChars, describeNode(headlineNode)))
 	}
@@ -126,7 +158,7 @@ func rateBylineContainerNode(c candidate, contentNodes []*html.Node, headlineNod
 		c.addPoints(2, "indicative text")
 	}
 
-	// TODO: TEST: contains twitter id?
+	// TODO: TEST: contains/adjacent to date info
 }
 
 // rate node on how much it looks like an individual author
@@ -138,7 +170,6 @@ func rateAuthorNode(c candidate, contentNodes []*html.Node) {
 	hcardAuthorSel := cascadia.MustCompile(".vcard.author")
 	relAuthorSel := cascadia.MustCompile(`a[rel="author"]`)
 	itemPropAuthorSel := cascadia.MustCompile(`[itemprop="author"]`)
-	likelyClassPat := regexp.MustCompile(`(?i)byline|by-line|by_line|author|writer|credits|storycredit|firma`)
 
 	// likely-looking author urls
 	goodUrlPat := regexp.MustCompile(`(?i)(^mailto:)|([/](columnistarchive|biography|profile|about|author[s]?|writer|i-author|authorinfo)[/])`)
@@ -163,10 +194,10 @@ func rateAuthorNode(c candidate, contentNodes []*html.Node) {
 	}
 
 	// TEST: likely other indicators in class/id?
-	if likelyClassPat.MatchString(getAttr(el, "class")) {
+	if authorPats.likelyClassPat.MatchString(getAttr(el, "class")) {
 		c.addPoints(1, "indicative class")
 	}
-	if likelyClassPat.MatchString(getAttr(el, "id")) {
+	if authorPats.likelyClassPat.MatchString(getAttr(el, "id")) {
 		c.addPoints(1, "indicative id")
 	}
 
@@ -184,7 +215,7 @@ func rateAuthorNode(c candidate, contentNodes []*html.Node) {
 	// TODO:
 	//  test: penalise for full sentence text (eg punctuation)
 	//  test: penalise for stopwords ("about" etc)
-	//  test: penalise if rel-tag
+	//  test: penalise if rel-tag or /category/ /topic/ whatever link
 	//  test: check for adjacent indicative text
 
 	// TEST: likely-looking link?
@@ -199,6 +230,8 @@ func rateAuthorNode(c candidate, contentNodes []*html.Node) {
 	//	if getLinkDensity(el.Parent) < 0.75 {
 	//		c.addPoints(-2, "in block of text")
 	//	}
+
+	// TODO: TEST: contains twitter id?
 }
 
 func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.Node) []Author {
@@ -231,7 +264,6 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.
 				}
 			}
 		}
-
 		if earlyOut {
 			continue
 		}
@@ -248,17 +280,20 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.
 		containerC := newStandardCandidate(el, txt)
 		rateBylineContainerNode(containerC, contentNodes, headlineNode)
 		if containerC.total() > 0 {
+
 			bylines[containerC.node()] = containerC
 		}
 	}
 
 	// run over all the author candidates, and give them credit for their parents
-	for _, authorC := range authors {
-		descendants := authors.descendants(authorC)
-		if len(descendants) > 0 {
-			descendants[len(descendants)-1].addPoints(float64(len(descendants)), "likely-looking parent(s)")
+	/*
+		for _, authorC := range authors {
+			descendants := authors.descendants(authorC)
+			if len(descendants) > 0 {
+				descendants[len(descendants)-1].addPoints(float64(len(descendants)), "likely-looking parent(s)")
+			}
 		}
-	}
+	*/
 
 	// PASS TWO: give containers credit for containing likely-looking authors
 	for _, byline := range bylines {
