@@ -13,6 +13,7 @@ import (
 	_ "code.google.com/p/go-charset/data"
 	"io/ioutil"
 	"log"
+	"net/url"
 )
 
 type Author struct {
@@ -23,11 +24,11 @@ type Author struct {
 }
 
 type Article struct {
-	CanonicalUrl  string
-	AlternateUrls []string // doesn't include canonical one
-	Headline      string
-	Authors       []Author
-	Content       string
+	CanonicalUrl string
+	Urls         []string // all known URLs for article
+	Headline     string
+	Authors      []Author
+	Content      string
 	// date of publication (an ISO8601 string or "" for none)
 	Published string
 	Updated   string
@@ -94,7 +95,13 @@ func Extract(raw_html []byte, artUrl string) (*Article, error) {
 
 	removeScripts(root)
 	// extract any canonical or alternate urls
-	art.CanonicalUrl, art.AlternateUrls = grabUrls(root)
+
+	u, err := url.Parse(artUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	art.CanonicalUrl, art.Urls = grabUrls(root, u)
 
 	headline, headlineNode, err := grabHeadline(root, artUrl)
 	if err == nil {

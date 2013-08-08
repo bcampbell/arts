@@ -2,6 +2,7 @@ package arts
 
 import (
 	"code.google.com/p/go.net/html"
+	"net/url"
 	"sort"
 	"strings"
 	"testing"
@@ -10,45 +11,72 @@ import (
 // TestGrabUrls tests the grabUrls() function
 func TestGrabUrls(t *testing.T) {
 
-	testHtml := `<!DOCTYPE html>
+	testData := []struct {
+		rawHTML   string
+		srcURL    string
+		canonical string
+		urls      []string
+	}{
+		// test 1: no alternative urls on page
+		{`<html><head></head><body></body></html>`,
+			"http://example.com/fook",
+			"",
+			[]string{"http://example.com/fook"},
+		},
+		// test 2: check canonical extraction, url normalisation
+		{
+			`<!DOCTYPE html>
 <html>
  <head>
   <meta property="og:url" content="http://example.com/fook?fb=1" />
-  <link rel="canonical" href="http://example.com/fook" />
+  <link rel="canonical" href="HTTP://Example.Com/fook" />
   <link rel="shortlink" href="http://examp.le/?p=1" />
  </head>
  <body>
  </body>
 </html>
-`
-	expectedCanonical := "http://example.com/fook"
-	expectedAlternates := []string{"http://example.com/fook?fb=1", "http://examp.le/?p=1"}
-	sort.Strings(expectedAlternates)
-
-	root, err := html.Parse(strings.NewReader(testHtml))
-	if err != nil {
-		panic(err)
+`,
+			"http://example.com/fook",
+			"http://example.com/fook",
+			[]string{"http://example.com/fook", "http://example.com/fook?fb=1", "http://examp.le/?p=1"},
+		},
 	}
 
-	canonical, alternates := grabUrls(root)
+	// go for it.
+	for _, expected := range testData {
 
-	if canonical != expectedCanonical {
-		t.Errorf(`bad canonical (got "%s" expected "%s")`, canonical, expectedCanonical)
-	}
+		srcUrl, err := url.Parse(expected.srcURL)
+		if err != nil {
+			panic(err)
+		}
 
-	bad := false
-	sort.Strings(alternates)
-	if len(alternates) != len(expectedAlternates) {
-		bad = true
-	} else {
-		for i, alt := range alternates {
-			if alt != expectedAlternates[i] {
-				bad = true
+		sort.Strings(expected.urls)
+
+		root, err := html.Parse(strings.NewReader(expected.rawHTML))
+		if err != nil {
+			panic(err)
+		}
+
+		canonical, all := grabUrls(root, srcUrl)
+
+		if canonical != expected.canonical {
+			t.Errorf(`bad canonical (got "%s" expected "%s")`, canonical, expected.canonical)
+		}
+
+		bad := false
+		sort.Strings(all)
+		if len(all) != len(expected.urls) {
+			bad = true
+		} else {
+			for i, alt := range all {
+				if alt != expected.urls[i] {
+					bad = true
+				}
 			}
 		}
-	}
 
-	if bad {
-		t.Errorf(`bad alternate url list (got "%v" expected "%v")`, alternates, expectedAlternates)
+		if bad {
+			t.Errorf(`bad url list (got "%v" expected "%v")`, all, expected.urls)
+		}
 	}
 }

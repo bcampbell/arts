@@ -12,7 +12,7 @@ package main
 // the articles were part of the crawl.
 //
 // for now, I'm using this in my squid.conf:
-//   refresh_pattern ^http: 60 20% 4320 ignore-no-cache ignore-no-store override-expire
+//   refresh_pattern ^http: 60 20% 4320 ignore-no-private ignore-no-cache ignore-no-store override-expire
 //
 //
 import (
@@ -151,13 +151,11 @@ func openHttp(artURL string) (io.ReadCloser, error) {
 func writeYaml(w io.Writer, url string, art *arts.Article) {
 	// yaml front matter
 	fmt.Fprintf(w, "---\n")
-	fmt.Fprintf(w, "canonical_url: %s\n", quote(art.CanonicalUrl))
-	if len(art.AlternateUrls) > 0 {
-		fmt.Fprintf(w, "alternate_urls:\n")
-		for _, url := range art.AlternateUrls {
-			fmt.Fprintf(w, "  - %s\n", quote(url))
-		}
+	fmt.Fprintf(w, "urls:\n")
+	for _, url := range art.Urls {
+		fmt.Fprintf(w, "  - %s\n", quote(url))
 	}
+	fmt.Fprintf(w, "canonical_url: %s\n", quote(art.CanonicalUrl))
 	fmt.Fprintf(w, "headline: %s\n", quote(art.Headline))
 	if len(art.Authors) > 0 {
 		fmt.Fprintf(w, "authors:\n")

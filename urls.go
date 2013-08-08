@@ -6,6 +6,8 @@ package arts
 import (
 	"code.google.com/p/cascadia"
 	"code.google.com/p/go.net/html"
+	"github.com/PuerkitoBio/purell"
+	"net/url"
 )
 
 var urlSels = struct {
@@ -18,40 +20,60 @@ var urlSels = struct {
 	cascadia.MustCompile(`head link[rel="shortlink"]`),
 }
 
+func sanitiseURL(link string, baseURL *url.URL) (string, error) {
+	u, err := baseURL.Parse(link)
+	if err != nil {
+		return "", err
+	}
+
+	return purell.NormalizeURL(u, purell.FlagsSafe), nil
+}
+
 // grabUrls looks for rel-canonical, og:url and rel-shortlink urls
-// returns canonical url (or "") and a list of alternative (non-canonical) urls
-func grabUrls(root *html.Node) (string, []string) {
+// returns canonical url (or "") and a list of all urls (including baseURL)
+func grabUrls(root *html.Node, baseURL *url.URL) (string, []string) {
+
 	canonical := ""
 	all := make(map[string]bool)
 
+	// start with base URL
+	u := purell.NormalizeURL(baseURL, purell.FlagsSafe)
+	all[u] = true
+
 	// look for canonical urls first
-	for _, link := range urlSels.relCanonical.MatchAll(root) {
-		url := getAttr(link, "href")
-		all[url] = true
-		if canonical == "" {
-			canonical = url
-		}
-	}
 	for _, link := range urlSels.ogUrl.MatchAll(root) {
-		url := getAttr(link, "content")
-		all[url] = true
-		if canonical == "" {
-			canonical = url
+		u, err := sanitiseURL(getAttr(link, "content"), baseURL)
+		if err != nil {
+			continue
 		}
+
+		all[u] = true
+		canonical = u
+	}
+	for _, link := range urlSels.relCanonical.MatchAll(root) {
+		u, err := sanitiseURL(getAttr(link, "href"), baseURL)
+		if err != nil {
+			continue
+		}
+
+		all[u] = true
+		canonical = u
 	}
 
 	// look for other (non-canonical) urls
 	for _, link := range urlSels.relShortlink.MatchAll(root) {
-		url := getAttr(link, "href")
-		all[url] = true
+		u, err := sanitiseURL(getAttr(link, "href"), baseURL)
+		if err != nil {
+			continue
+		}
+		all[u] = true
 	}
 
 	// build up list of alternates
-	delete(all, canonical)
-	alternates := make([]string, 0, 8)
-	for url, _ := range all {
-		alternates = append(alternates, url)
+	allList := make([]string, 0, 8)
+	for u, _ := range all {
+		allList = append(allList, u)
 	}
 
-	return canonical, alternates
+	return canonical, allList
 }
