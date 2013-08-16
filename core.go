@@ -17,23 +17,29 @@ import (
 )
 
 type Author struct {
-	Name    string
-	RelLink string // rel-author link (or similar)
+	Name    string `json:"name"`
+	RelLink string
 	Email   string
 	Twitter string
 }
 
 type Article struct {
-	CanonicalUrl string
-	Urls         []string // all known URLs for article
-	Headline     string
-	Authors      []Author
-	Content      string
-	// date of publication (an ISO8601 string or "" for none)
-	Published string
-	Updated   string
+	CanonicalUrl string `json:"canonical_url,omitempty"`
+	// all known URLs for article (including canonical)
+	// TODO: first url should be considered "preferred" if no canonical?
+	Urls     []string `json:"urls,omitempty"`
+	Headline string   `json:"headline,omitempty"`
+	Authors  []Author `json:"authors,omitempty"`
+	Content  string   `json:"content,omitempty"`
+	// Published contains date of publication.
+	// An ISO8601 string is used instead of time.Time, so that
+	// less-precise representations can be held (eg YYYY-MM)
+	Published string `json:"published,omitempty"`
+	Updated   string `json:"updated,omitempty"`
+	// TODO:
 	// Language
 	// Publication
+	// article confidence?
 }
 
 // TODO:
