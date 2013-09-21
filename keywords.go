@@ -4,7 +4,6 @@ import (
 	"code.google.com/p/go.net/html"
 	"github.com/matrixik/goquery"
 	"strings"
-	"log"
 )
 
 func grabKeywords(root *html.Node) (list []string) {
