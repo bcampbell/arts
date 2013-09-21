@@ -31,6 +31,7 @@ type Article struct {
 	Headline string   `json:"headline,omitempty"`
 	Authors  []Author `json:"authors,omitempty"`
 	Content  string   `json:"content,omitempty"`
+	Keywords []string `json:"keywords,omitempty"`
 	// Published contains date of publication.
 	// An ISO8601 string is used instead of time.Time, so that
 	// less-precise representations can be held (eg YYYY-MM)
@@ -113,6 +114,7 @@ func Extract(raw_html []byte, artUrl string) (*Article, error) {
 	if err == nil {
 		art.Headline = headline
 	}
+	art.Keywords = grabKeywords(root)
 
 	contentNodes, contentScores := grabContent(root)
 	art.Authors = grabAuthors(root, contentNodes, headlineNode)
