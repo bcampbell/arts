@@ -19,7 +19,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/bcampbell/arts"
+	"github.com/bcampbell/arts/arts"
 	"io"
 	"io/ioutil"
 	"log"
