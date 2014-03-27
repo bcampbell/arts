@@ -112,7 +112,7 @@ func main() {
 		panic(err)
 	}
 
-	art, err := arts.Extract(raw_html, artURL)
+	art, err := arts.ExtractHTML(raw_html, artURL)
 	if err != nil {
 		panic(err)
 	}

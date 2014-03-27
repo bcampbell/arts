@@ -5,6 +5,8 @@ package arts
 import (
 	"bytes"
 	"code.google.com/p/go.net/html"
+	"errors"
+	"fmt"
 	"io"
 	"regexp"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	_ "code.google.com/p/go-charset/data"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"net/url"
 )
 
@@ -64,7 +67,28 @@ var Debug = struct {
 	DatesLogger *log.Logger
 }{}
 
-func Extract(raw_html []byte, artUrl string) (*Article, error) {
+func Extract(client *http.Client, srcURL string) (*Article, error) {
+
+	resp, err := client.Get(srcURL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, errors.New(fmt.Sprintf("HTTP error: %s", resp.Status))
+	}
+
+	rawHTML, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return ExtractHTML(rawHTML, srcURL)
+
+}
+
+func ExtractHTML(raw_html []byte, artUrl string) (*Article, error) {
 	enc := findCharset("", raw_html)
 	var r io.Reader
 	r = strings.NewReader(string(raw_html))
