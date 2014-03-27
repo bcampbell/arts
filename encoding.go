@@ -12,7 +12,7 @@ import (
 // some background:
 // http://www.w3.org/International/questions/qa-html-encoding-declarations#quicklookup
 
-var metaCharsetSelector = cascadia.MustCompile(`meta[charset], meta[http-equiv="Content-Type"]`)
+var metaCharsetSelector = cascadia.MustCompile(`meta[charset], meta[http-equiv]`)
 
 // findCharset returns the character encoding to be used to interpret the
 // page's content.
