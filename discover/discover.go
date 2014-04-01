@@ -25,8 +25,18 @@ type Logger interface {
 	Printf(format string, v ...interface{})
 }
 
+type NullLogger struct{}
+
+func (l NullLogger) Printf(format string, v ...interface{}) {
+}
+
+type DiscovererDef struct {
+	URL    string
+	ArtPat []string
+	NavSel string
+}
+
 type Discoverer struct {
-	Name           string
 	StartURL       url.URL
 	ArtPats        []*regexp.Regexp
 	NavLinkSel     cascadia.Selector
@@ -39,6 +49,40 @@ type Discoverer struct {
 		ErrorCount int
 		FetchCount int
 	}
+}
+
+func NewDiscoverer(cfg DiscovererDef) (*Discoverer, error) {
+	disc := &Discoverer{}
+	u, err := url.Parse(cfg.URL)
+	if err != nil {
+		return nil, err
+	}
+	disc.StartURL = *u
+	disc.ArtPats = make([]*regexp.Regexp, 0, len(cfg.ArtPat))
+	for _, pat := range cfg.ArtPat {
+		re, err := regexp.Compile(pat)
+		if err != nil {
+			return nil, err
+		}
+		disc.ArtPats = append(disc.ArtPats, re)
+	}
+
+	if cfg.NavSel == "" {
+		disc.NavLinkSel = nil
+	} else {
+		sel, err := cascadia.Compile(cfg.NavSel)
+		if err != nil {
+			return nil, err
+		}
+		disc.NavLinkSel = sel
+	}
+
+	// defaults
+	disc.StripFragments = true
+	disc.StripQuery = true
+	disc.ErrorLog = NullLogger{}
+	disc.InfoLog = NullLogger{}
+	return disc, nil
 }
 
 func (disc *Discoverer) Run(client *http.Client) (LinkSet, error) {
