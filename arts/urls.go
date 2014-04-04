@@ -31,7 +31,7 @@ func sanitiseURL(link string, baseURL *url.URL) (string, error) {
 
 // grabUrls looks for rel-canonical, og:url and rel-shortlink urls
 // returns canonical url (or "") and a list of all urls (including baseURL)
-func grabUrls(root *html.Node, baseURL *url.URL) (string, []string) {
+func grabURLs(root *html.Node, baseURL *url.URL) (string, []string) {
 
 	canonical := ""
 	all := make(map[string]bool)

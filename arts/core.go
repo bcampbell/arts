@@ -27,10 +27,10 @@ type Author struct {
 }
 
 type Article struct {
-	CanonicalUrl string `json:"canonical_url,omitempty"`
+	CanonicalURL string `json:"canonical_url,omitempty"`
 	// all known URLs for article (including canonical)
 	// TODO: first url should be considered "preferred" if no canonical?
-	Urls     []string `json:"urls,omitempty"`
+	URLs     []string `json:"urls,omitempty"`
 	Headline string   `json:"headline,omitempty"`
 	Authors  []Author `json:"authors,omitempty"`
 	Content  string   `json:"content,omitempty"`
@@ -131,7 +131,7 @@ func ExtractHTML(raw_html []byte, artUrl string) (*Article, error) {
 		return nil, err
 	}
 
-	art.CanonicalUrl, art.Urls = grabUrls(root, u)
+	art.CanonicalURL, art.URLs = grabURLs(root, u)
 
 	headline, headlineNode, err := grabHeadline(root, artUrl)
 	if err == nil {
@@ -140,7 +140,7 @@ func ExtractHTML(raw_html []byte, artUrl string) (*Article, error) {
 
 	contentNodes, contentScores := grabContent(root)
 	art.Authors = grabAuthors(root, contentNodes, headlineNode)
-	published, updated := grabDates(root, art.CanonicalUrl, contentNodes)
+	published, updated := grabDates(root, art.CanonicalURL, contentNodes)
 	if !published.Empty() {
 		art.Published, _ = published.IsoFormat()
 	}
