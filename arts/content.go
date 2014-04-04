@@ -160,6 +160,13 @@ func grabContent(root *html.Node) ([]*html.Node, candidateMap) {
 		}
 	}
 
+	contentNodes := make([]*html.Node, 0, 64)
+	if len(candidates) == 0 {
+		// oh.
+		dbug.Printf("no candidates\n")
+		return contentNodes, candidates
+	}
+
 	/**
 	 * Scale the final candidates score based on link density. Good content should have a
 	 * relatively small link density (5% or less) and be mostly unaffected by this operation.
@@ -188,8 +195,6 @@ func grabContent(root *html.Node) ([]*html.Node, candidateMap) {
 	if siblingScoreThreshold < 10 {
 		siblingScoreThreshold = 10
 	}
-
-	contentNodes := make([]*html.Node, 0, 64)
 
 	for siblingNode := topCandidate.node().Parent.FirstChild; siblingNode != nil; siblingNode = siblingNode.NextSibling {
 		useIt := false
