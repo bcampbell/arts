@@ -121,14 +121,8 @@ func main() {
 }
 
 func openHttp(artURL string) (io.ReadCloser, error) {
-	proxyString := "http://localhost:3128"
-	proxyURL, err := url.Parse(proxyString)
-	if err != nil {
-		return nil, err
-	}
 
-	transport := &http.Transport{Proxy: http.ProxyURL(proxyURL)}
-	client := &http.Client{Transport: transport}
+	client := &http.Client{}
 
 	request, err := http.NewRequest("GET", artURL, nil)
 	if err != nil {
@@ -152,10 +146,10 @@ func writeYaml(w io.Writer, url string, art *arts.Article) {
 	// yaml front matter
 	fmt.Fprintf(w, "---\n")
 	fmt.Fprintf(w, "urls:\n")
-	for _, url := range art.Urls {
+	for _, url := range art.URLs {
 		fmt.Fprintf(w, "  - %s\n", quote(url))
 	}
-	fmt.Fprintf(w, "canonical_url: %s\n", quote(art.CanonicalUrl))
+	fmt.Fprintf(w, "canonical_url: %s\n", quote(art.CanonicalURL))
 	fmt.Fprintf(w, "headline: %s\n", quote(art.Headline))
 	if len(art.Authors) > 0 {
 		fmt.Fprintf(w, "authors:\n")
@@ -169,6 +163,9 @@ func writeYaml(w io.Writer, url string, art *arts.Article) {
 	if art.Updated != "" {
 		fmt.Fprintf(w, "updated: %s\n", art.Updated)
 	}
+	fmt.Fprintf(w, "publication:\n")
+	fmt.Fprintf(w, "  - name: %s\n", quote(art.Publication.Name))
+	fmt.Fprintf(w, "  - domain: %s\n", quote(art.Publication.Domain))
 	fmt.Fprintf(w, "---\n")
 	// the text content
 	fmt.Fprint(w, art.Content)

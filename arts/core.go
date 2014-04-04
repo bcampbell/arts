@@ -26,6 +26,14 @@ type Author struct {
 	Twitter string
 }
 
+type Publication struct {
+	Name   string `json:"name,omitempty"`
+	Domain string `json:"domain,omitempty"`
+
+	// TODO: add publication versions of rel-author
+	// eg "article:publisher", rel-publisher
+}
+
 type Article struct {
 	CanonicalURL string `json:"canonical_url,omitempty"`
 	// all known URLs for article (including canonical)
@@ -37,8 +45,10 @@ type Article struct {
 	// Published contains date of publication.
 	// An ISO8601 string is used instead of time.Time, so that
 	// less-precise representations can be held (eg YYYY-MM)
-	Published string `json:"published,omitempty"`
-	Updated   string `json:"updated,omitempty"`
+	Published   string      `json:"published,omitempty"`
+	Updated     string      `json:"updated,omitempty"`
+	Publication Publication `json:"publication,omitempty"`
+
 	// TODO:
 	// Language
 	// Publication
@@ -133,6 +143,8 @@ func ExtractHTML(raw_html []byte, artUrl string) (*Article, error) {
 
 	art.CanonicalURL, art.URLs = grabURLs(root, u)
 
+	art.Publication = grabPublication(root, art)
+
 	headline, headlineNode, err := grabHeadline(root, artUrl)
 	if err == nil {
 		art.Headline = headline
@@ -166,4 +178,22 @@ func ExtractHTML(raw_html []byte, artUrl string) (*Article, error) {
 	//		dumpTree(n, 0)
 	//	}
 	return art, nil
+}
+
+func grabPublication(root *html.Node, art *Article) Publication {
+	// TODO: check og:site_name and other metadata
+	pub := Publication{}
+
+	// get domain
+	canonical := art.CanonicalURL
+	if canonical == "" {
+		// TODO: better fallback
+		canonical = art.URLs[0]
+	}
+
+	u, err := url.Parse(canonical)
+	if err == nil {
+		pub.Domain = u.Host
+	}
+	return pub
 }
