@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// TestGrabUrls tests the grabUrls() function
-func TestGrabUrls(t *testing.T) {
+// TestGrabUrls tests the grabURLs() function
+func TestGrabURLs(t *testing.T) {
 
 	testData := []struct {
 		rawHTML   string
@@ -57,7 +57,7 @@ func TestGrabUrls(t *testing.T) {
 			panic(err)
 		}
 
-		canonical, all := grabUrls(root, srcUrl)
+		canonical, all := grabURLs(root, srcUrl)
 
 		if canonical != expected.canonical {
 			t.Errorf(`bad canonical (got "%s" expected "%s")`, canonical, expected.canonical)

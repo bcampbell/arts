@@ -154,10 +154,10 @@ func ExtractHTML(raw_html []byte, artUrl string) (*Article, error) {
 	art.Authors = grabAuthors(root, contentNodes, headlineNode)
 	published, updated := grabDates(root, art.CanonicalURL, contentNodes)
 	if !published.Empty() {
-		art.Published, _ = published.IsoFormat()
+		art.Published = published.ISOFormat()
 	}
 	if !updated.Empty() {
-		art.Updated, _ = updated.IsoFormat()
+		art.Updated = updated.ISOFormat()
 	}
 
 	// TODO: Turn all double br's into p's? Kill <style> tags? (see prepDocument())
