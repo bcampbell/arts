@@ -382,16 +382,6 @@ func zapConditionally(contentNodes []*html.Node, tagSel string, candidates candi
 	}
 }
 
-func filterAttrs(n *html.Node, fn func(*html.Attribute) bool) {
-	var out []html.Attribute // == nil
-	for _, a := range n.Attr {
-		if fn(&a) {
-			out = append(out, a)
-		}
-	}
-	n.Attr = out
-}
-
 // Tidy up extracted content into something that'll produce reasonable html when
 // rendered
 // - remove comments
@@ -400,35 +390,7 @@ func filterAttrs(n *html.Node, fn func(*html.Attribute) bool) {
 // - TODO make links absolute
 func sanitiseContent(contentNodes []*html.Node) {
 
-	var commentSel cascadia.Selector = func(n *html.Node) bool {
-		return n.Type == html.CommentNode
-	}
-	var textSel cascadia.Selector = func(n *html.Node) bool {
-		return n.Type == html.TextNode
-	}
-	var elementSel cascadia.Selector = func(n *html.Node) bool {
-		return n.Type == html.ElementNode
-	}
-
 	for _, node := range contentNodes {
-		// remove all comments
-		for _, n := range commentSel.MatchAll(node) {
-			n.Parent.RemoveChild(n)
-		}
-		// trim leading/trailing space in text, and cull empty text nodes
-		for _, n := range textSel.MatchAll(node) {
-			txt := strings.TrimSpace(n.Data)
-			if len(txt) == 0 {
-				n.Parent.RemoveChild(n)
-			} else {
-				n.Data = txt
-			}
-		}
-		// remove styles, ids and classes
-		for _, n := range elementSel.MatchAll(node) {
-			filterAttrs(n, func(attr *html.Attribute) bool {
-				return attr.Key != "style" && attr.Key != "id" && attr.Key != "class"
-			})
-		}
+		tidyNode(node)
 	}
 }
