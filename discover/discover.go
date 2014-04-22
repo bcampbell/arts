@@ -31,17 +31,21 @@ func (l NullLogger) Printf(format string, v ...interface{}) {
 }
 
 type DiscovererDef struct {
-	URL    string
-	ArtPat []string
-	NavSel string
+	Name               string
+	URL                string
+	ArtPat             []string
+	NavSel             string
+	BaseErrorThreshold int
 }
 
 type Discoverer struct {
-	StartURL       url.URL
-	ArtPats        []*regexp.Regexp
-	NavLinkSel     cascadia.Selector
-	StripFragments bool
-	StripQuery     bool
+	Name               string
+	StartURL           url.URL
+	ArtPats            []*regexp.Regexp
+	NavLinkSel         cascadia.Selector
+	BaseErrorThreshold int
+	StripFragments     bool
+	StripQuery         bool
 
 	ErrorLog Logger
 	InfoLog  Logger
@@ -57,6 +61,7 @@ func NewDiscoverer(cfg DiscovererDef) (*Discoverer, error) {
 	if err != nil {
 		return nil, err
 	}
+	disc.Name = cfg.Name
 	disc.StartURL = *u
 	disc.ArtPats = make([]*regexp.Regexp, 0, len(cfg.ArtPat))
 	for _, pat := range cfg.ArtPat {
@@ -76,6 +81,7 @@ func NewDiscoverer(cfg DiscovererDef) (*Discoverer, error) {
 		}
 		disc.NavLinkSel = sel
 	}
+	disc.BaseErrorThreshold = cfg.BaseErrorThreshold
 
 	// defaults
 	disc.StripFragments = true
@@ -102,7 +108,7 @@ func (disc *Discoverer) Run(client *http.Client) (LinkSet, error) {
 		if err != nil {
 			disc.ErrorLog.Printf("%s\n", err.Error())
 			disc.Stats.ErrorCount++
-			if disc.Stats.ErrorCount > disc.Stats.FetchCount/10 {
+			if disc.Stats.ErrorCount > disc.BaseErrorThreshold+(disc.Stats.FetchCount/10) {
 				return nil, errors.New("Error threshold exceeded")
 			} else {
 				continue
@@ -133,7 +139,7 @@ func (disc *Discoverer) Run(client *http.Client) (LinkSet, error) {
 }
 
 func (disc *Discoverer) fetchAndParse(client *http.Client, pageURL *url.URL) (*html.Node, error) {
-	resp, err := http.Get(pageURL.String())
+	resp, err := client.Get(pageURL.String())
 	if err != nil {
 		return nil, err
 	}
