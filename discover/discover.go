@@ -31,11 +31,18 @@ func (l NullLogger) Printf(format string, v ...interface{}) {
 }
 
 type DiscovererDef struct {
-	Name               string
-	URL                string
-	ArtPat             []string
-	NavSel             string
+	Name   string
+	URL    string
+	ArtPat []string
+	NavSel string
+	// BaseErrorThreshold is starting number of http errors to accept before
+	// bailing out.
+	// error threshold formula: base + 10% of successful request count
 	BaseErrorThreshold int
+
+	// Hostpat is a regex matching accepted domains
+	// if empty, reject everything on a different domain
+	HostPat string
 }
 
 type Discoverer struct {
@@ -46,6 +53,7 @@ type Discoverer struct {
 	BaseErrorThreshold int
 	StripFragments     bool
 	StripQuery         bool
+	HostPat            *regexp.Regexp
 
 	ErrorLog Logger
 	InfoLog  Logger
@@ -82,6 +90,14 @@ func NewDiscoverer(cfg DiscovererDef) (*Discoverer, error) {
 		disc.NavLinkSel = sel
 	}
 	disc.BaseErrorThreshold = cfg.BaseErrorThreshold
+
+	if cfg.HostPat != "" {
+		re, err := regexp.Compile(cfg.HostPat)
+		if err != nil {
+			return nil, err
+		}
+		disc.HostPat = re
+	}
 
 	// defaults
 	disc.StripFragments = true
@@ -171,7 +187,7 @@ func (disc *Discoverer) findArticles(root *html.Node) (LinkSet, error) {
 			continue
 		}
 
-		if link.Host != disc.StartURL.Host {
+		if !disc.isHostGood(link.Host) {
 			continue
 		}
 
@@ -209,7 +225,8 @@ func (disc *Discoverer) findNavLinks(root *html.Node) (LinkSet, error) {
 		if err != nil {
 			continue
 		}
-		if link.Host != disc.StartURL.Host {
+
+		if !disc.isHostGood(link.Host) {
 			continue
 		}
 
@@ -218,6 +235,14 @@ func (disc *Discoverer) findNavLinks(root *html.Node) (LinkSet, error) {
 		navLinks[*link] = true
 	}
 	return navLinks, nil
+}
+
+// is host domain one we'll accept?
+func (disc *Discoverer) isHostGood(host string) bool {
+	if disc.HostPat != nil {
+		return disc.HostPat.MatchString(host)
+	}
+	return host == disc.StartURL.Host
 }
 
 // GetAttr retrieved the value of an attribute on a node.
