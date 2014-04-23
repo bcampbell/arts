@@ -1,6 +1,7 @@
 package util
 
 import (
+	//	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -14,32 +15,36 @@ import (
 type PoliteTripper struct {
 	PerHostDelay time.Duration
 	lock         sync.Mutex
-	nextReq      map[string]time.Time
+	prevTime     map[string]time.Time
 }
 
 func NewPoliteTripper() *PoliteTripper {
-	return &PoliteTripper{PerHostDelay: 1 * time.Second, nextReq: make(map[string]time.Time)}
+	return &PoliteTripper{PerHostDelay: 1 * time.Second, prevTime: make(map[string]time.Time)}
 }
 
 func (this *PoliteTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	now := time.Now()
+	for {
+		this.lock.Lock()
+		prev, _ := this.prevTime[req.URL.Host]
+		elapsed := time.Since(prev)
 
-	// schedule a timeslot for this req
-	this.lock.Lock()
-	scheduled, exists := this.nextReq[req.URL.Host]
-	if !exists {
-		scheduled = now
-	}
-	this.nextReq[req.URL.Host] = scheduled.Add(this.PerHostDelay)
-	this.lock.Unlock()
+		if elapsed >= this.PerHostDelay {
+			// OK - go!
+			this.prevTime[req.URL.Host] = time.Now()
+			this.lock.Unlock()
+			//fmt.Printf("%s: GO %v\n", req.URL.Host, time.Now())
+			return http.DefaultTransport.RoundTrip(req)
 
-	// now wait until our turn comes up
-	delay := scheduled.Sub(now)
-	if delay > 0 {
-		//	fmt.Printf("sleep %v %s %s\n", delay, req.Method, req.URL.String())
+		}
+		this.lock.Unlock()
+
+		// sleep until we think the expected time has passed
+		// (but some other request might get in first, hence inifinte for
+		// loop to repeating the whole thing from scratch...
+		delay := this.PerHostDelay - elapsed
+		//		fmt.Printf("%s: sleep %v\n", req.URL.Host, delay)
 		time.Sleep(delay)
 	}
-	return http.DefaultTransport.RoundTrip(req)
 }
 
 /* example usage:
@@ -49,37 +54,20 @@ func main() {
 	c := &http.Client{
 		Transport: NewPoliteTripper(),
 	}
-	var wg sync.WaitGroup
 
 	tests := []string{
-		"http://gi.dev",
-		"http://gi.dev",
-		"http://gi.dev",
-		"http://gi.dev",
-		"http://gi.dev",
-		"http://gi.dev",
-		"http://gi.dev",
-		"http://gi.dev",
-		"http://gi.dev",
-		"http://jl.dev",
-		"http://jl.dev",
-		"http://jl.dev",
-		"http://jl.dev",
-		"http://jl.dev",
-		"http://jl.dev",
-		"http://scumways.com",
+		"http://example.com",
+		"http://example.com",
+		"http://example.com",
+		"http://example.com",
+		"http://example.com",
 	}
 
 	for i, u := range tests {
-		wg.Add(1)
-		go func(i int, u string) {
-			defer wg.Done()
-			fmt.Printf("%v %d: start %s\n", time.Now(), i, u)
-			c.Get(u)
-			fmt.Printf("%v %d: done %s\n", time.Now(), i, u)
-		}(i, u)
+        fmt.Printf("%v %d: start %s\n", time.Now(), i, u)
+        c.Get(u)
+        fmt.Printf("%v %d: done %s\n", time.Now(), i, u)
 	}
 
-	wg.Wait()
 }
 */
