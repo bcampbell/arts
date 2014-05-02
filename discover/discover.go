@@ -45,6 +45,11 @@ type DiscovererDef struct {
 	HostPat string
 }
 
+type DiscoverStats struct {
+	ErrorCount int
+	FetchCount int
+}
+
 type Discoverer struct {
 	Name               string
 	StartURL           url.URL
@@ -57,10 +62,7 @@ type Discoverer struct {
 
 	ErrorLog Logger
 	InfoLog  Logger
-	Stats    struct {
-		ErrorCount int
-		FetchCount int
-	}
+	Stats    DiscoverStats
 }
 
 func NewDiscoverer(cfg DiscovererDef) (*Discoverer, error) {
@@ -108,6 +110,8 @@ func NewDiscoverer(cfg DiscovererDef) (*Discoverer, error) {
 }
 
 func (disc *Discoverer) Run(client *http.Client) (LinkSet, error) {
+	// reset stats
+	disc.Stats = DiscoverStats{}
 
 	queued := make(LinkSet) // nav pages to scan for article links
 	seen := make(LinkSet)   // nav pages we've scanned
