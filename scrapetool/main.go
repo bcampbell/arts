@@ -2,8 +2,13 @@ package main
 
 // commandline tool to grab, scrape and output a news article
 //
+// can grab article via http or from a file (raw html or the
+// first response in a .warc)
+//
 
 import (
+	"bufio"
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -45,12 +50,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	artURL := flag.Arg(0)
-	u, err := url.Parse(artURL)
-	if err != nil {
-		panic(err)
-	}
-
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
 		if err != nil {
@@ -81,6 +80,12 @@ func main() {
 		}
 	}
 
+	artURL := flag.Arg(0)
+	u, err := url.Parse(artURL)
+	if err != nil {
+		panic(err)
+	}
+
 	var in io.ReadCloser
 	switch strings.ToLower(u.Scheme) {
 	case "http", "https":
@@ -89,6 +94,19 @@ func main() {
 			panic(err)
 		}
 	case "file", "":
+
+		foo := strings.ToLower(u.Path)
+		if strings.HasSuffix(foo, ".warc") {
+			art, err := fromWARC(u.Path)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+
+			writeYaml(os.Stdout, art)
+			return
+		}
+
 		in, err = os.Open(u.Path)
 		if err != nil {
 			panic(err)
@@ -106,7 +124,41 @@ func main() {
 		panic(err)
 	}
 
-	writeYaml(os.Stdout, artURL, art)
+	writeYaml(os.Stdout, art)
+}
+
+func fromWARC(filename string) (*arts.Article, error) {
+	in, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	for {
+		rec, err := warc.Read(in)
+		if err != nil {
+			return nil, fmt.Errorf("Error reading %s: %s", filename, err)
+		}
+		if rec.Header.Get("Warc-Type") != "response" {
+			continue
+		}
+		reqURL := rec.Header.Get("Warc-Target-Uri")
+		// parse response, grab raw html
+		rdr := bufio.NewReader(bytes.NewReader(rec.Block))
+		response, err := http.ReadResponse(rdr, nil)
+		if err != nil {
+			return nil, fmt.Errorf("Error parsing response: %s", err)
+		}
+		defer response.Body.Close()
+		if response.StatusCode != 200 {
+			return nil, fmt.Errorf("HTTP error: %d", response.StatusCode)
+		}
+		rawHTML, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			return nil, err
+		}
+		// TODO: arts should allow parsing in raw response? or header + body?
+		return arts.ExtractHTML(rawHTML, reqURL)
+	}
+
 }
 
 func openHttp(artURL string) (io.ReadCloser, error) {
@@ -131,7 +183,7 @@ func openHttp(artURL string) (io.ReadCloser, error) {
 // The plan is to store a big set of example articles in this format:
 // YAML front matter (like in jekyll), with headline, authors etc...
 // The rest of the file has the expected article text.
-func writeYaml(w io.Writer, url string, art *arts.Article) {
+func writeYaml(w io.Writer, art *arts.Article) {
 	// yaml front matter
 	fmt.Fprintf(w, "---\n")
 	fmt.Fprintf(w, "urls:\n")
