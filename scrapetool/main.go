@@ -1,25 +1,14 @@
 package main
 
 // commandline tool to grab, scrape and output a news article
-// NOTE: currently assumes you've got a local http proxy running,
-// to cache articles.
-// I use squid, tweaked to cache for an hour or two, even if the web site
-// says not to (which is really common. A lot of newspapers think the little
-// clock in their page header is vitally important ;-)
-// The idea is that the cachine proxy will be used by both article scraping,
-// and article discovery (and maybe for other operations too). So if you need
-// to crawl a site to find article, you won't need to hit the server again if
-// the articles were part of the crawl.
 //
-// for now, I'm using this in my squid.conf:
-//   refresh_pattern ^http: 60 20% 4320 ignore-no-private ignore-no-cache ignore-no-store override-expire
-//
-//
+
 import (
 	"errors"
 	"flag"
 	"fmt"
 	"github.com/bcampbell/arts/arts"
+	"github.com/bcampbell/warc"
 	"io"
 	"io/ioutil"
 	"log"
