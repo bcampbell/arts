@@ -13,7 +13,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/bcampbell/arts/arts"
-	"github.com/bcampbell/warc"
+	"github.com/bcampbell/warc/warc"
 	"io"
 	"io/ioutil"
 	"log"
@@ -80,6 +80,7 @@ func main() {
 		}
 	}
 
+	// TODO: sort all this mess out!
 	artURL := flag.Arg(0)
 	u, err := url.Parse(artURL)
 	if err != nil {
@@ -132,8 +133,12 @@ func fromWARC(filename string) (*arts.Article, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer in.Close()
+
+	warcReader := warc.NewReader(in)
 	for {
-		rec, err := warc.Read(in)
+		//	fmt.Printf("WARC\n")
+		rec, err := warcReader.ReadRecord()
 		if err != nil {
 			return nil, fmt.Errorf("Error reading %s: %s", filename, err)
 		}
