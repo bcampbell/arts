@@ -1,57 +1,74 @@
 package arts
 
 import (
+	"code.google.com/p/cascadia"
 	"code.google.com/p/go.net/html"
 	"code.google.com/p/go.net/html/atom"
 	"errors"
-	"github.com/matrixik/goquery"
+	//	"fmt"
 	"regexp"
 	"sort"
-
-//	"strings"
+	"strings"
 )
+
+var headlinePats = struct {
+	considerSel cascadia.Selector // elements to consider
+	titleSel    cascadia.Selector
+	ogTitleSel  cascadia.Selector
+}{
+	cascadia.MustCompile("h1,h2,h3,h4,h5,h6,div,span,th,td"),
+	cascadia.MustCompile("title"),
+	cascadia.MustCompile(`meta[property="og:title"]`),
+}
 
 // TODO: phase out goquery - just use cascadia directly
 
 func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 	dbug := Debug.HeadlineLogger
-	doc := goquery.NewDocumentFromNode(root)
 
 	var candidates = make(candidateList, 0, 100)
 
 	indicative := regexp.MustCompile(`(?i)entry-title|headline|title`)
 
-	cooked_slug := toAlphanumeric(regexp.MustCompile("[-_]+").ReplaceAllLiteralString(getSlug(art_url), " "))
-	dbug.Printf("slug: '%s'\n", cooked_slug)
+	cookedSlug := toAlphanumeric(regexp.MustCompile("[-_]+").ReplaceAllLiteralString(getSlug(art_url), " "))
+	dbug.Printf("slug: '%s'\n", cookedSlug)
 
-	cooked_title := toAlphanumeric(doc.Find("head title").Text())
-	og_title, foo := doc.Find(`head meta[property="og:title"]`).Attr("content")
-	var cooked_og_title string
-	if foo {
-		cooked_og_title = toAlphanumeric(og_title)
+	//html.Render(os.Stderr, root)
+	//dumpTree(root, 0)
+
+	var cookedTitle string
+	t := headlinePats.titleSel.MatchFirst(root)
+	if t != nil {
+		cookedTitle = toAlphanumeric(getTextContent(t))
+	}
+
+	t = headlinePats.ogTitleSel.MatchFirst(root)
+	var cookedOgTitle string
+	if t != nil {
+		ogTitle := getAttr(t, "content")
+		cookedOgTitle = toAlphanumeric(ogTitle)
 	}
 
 	// TODO: early-out on hatom or schema.org article
 	// but not opengraph og:title (eg telegraph appends " - Telegraph",
 	// rolling stone does similar, others are bound to too)
 
-	doc.Find("h1,h2,h3,h4,h5,h6,div,span,th,td").Each(func(i int, s *goquery.Selection) {
-		//doc.Find("h1,h2,h3,h4,h5,h6").Each(func(i int, s *goquery.Selection) {
+	for _, el := range headlinePats.considerSel.MatchAll(root) {
 
-		txt := compressSpace(s.Text())
+		txt := compressSpace(getTextContent(el))
 		if len(txt) >= 500 {
-			return // too long
+			continue // too long
 		}
 		if len(txt) < 3 {
-			return // too short
+			continue // too short
 		}
 
-		cooked_txt := toAlphanumeric(txt)
+		cookedTxt := toAlphanumeric(txt)
 
-		c := newStandardCandidate(s.Nodes[0], txt)
+		c := newStandardCandidate(el, txt)
 
 		// TEST: is it a headliney element?
-		tag := s.Nodes[0].DataAtom
+		tag := el.DataAtom
 		if tag == atom.H1 || tag == atom.H2 || tag == atom.H3 || tag == atom.H4 {
 			c.addPoints(2, "headliney")
 		}
@@ -60,34 +77,39 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 		}
 
 		// TEST: likely-looking class or id?
-		cls, foo := s.Attr("class")
-		if foo && (indicative.FindStringIndex(cls) != nil) {
+		cls := getAttr(el, "class")
+		if cls != "" && (indicative.FindStringIndex(cls) != nil) {
 			c.addPoints(2, "indicative class")
 		}
 
-		id, foo := s.Attr("id")
-		if foo && (indicative.FindStringIndex(id) != nil) {
+		id := getAttr(el, "id")
+		if id != "" && (indicative.FindStringIndex(id) != nil) {
 			c.addPoints(2, "indicative id")
 		}
 
-		if len(cooked_txt) > 0 {
-			if wordCount(cooked_txt) >= 3 {
+		if len(cookedTxt) > 0 {
+			// TEST: beginning of <title>?
+			if strings.HasPrefix(cookedTitle, cookedTxt) {
+				c.addPoints(2, "appears at start of <title>")
+			}
+
+			if wordCount(cookedTxt) >= 3 {
 
 				// TEST: appears in page <title>?
 				{
-					value := jaccardWordCompare(cooked_txt, cooked_title)
+					value := jaccardWordCompare(cookedTxt, cookedTitle)
 					c.addPoints((value*4)-1, "score against <title>")
 				}
 
-				if cooked_og_title != "" {
+				if cookedOgTitle != "" {
 					// TEST: like og:title?
-					value := jaccardWordCompare(cooked_txt, cooked_og_title)
+					value := jaccardWordCompare(cookedTxt, cookedOgTitle)
 					c.addPoints((value*4)-1, "score against og::title")
 				}
 
 				// TEST: like the slug?
-				if cooked_slug != "" {
-					value := jaccardWordCompare(cooked_txt, cooked_slug)
+				if cookedSlug != "" {
+					value := jaccardWordCompare(cookedTxt, cookedSlug)
 					c.addPoints((value*4)-1, "score against slug")
 				}
 			}
@@ -97,6 +119,8 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 		// TEST: does it appear in likely looking <meta> tags? "Headline" etc...
 
 		// TEST: inside an obvious sidebar or <aside>?
+
+		/* TODO!!!!!!!!!!!!!!!!!!!!!!!
 		if s.Closest("aside").Length() > 0 {
 			c.addPoints(-3, "contained within <aside>")
 		}
@@ -108,6 +132,7 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 		if insideArticle(s) {
 			c.addPoints(1, "within article container")
 		}
+		*/
 
 		// IDEAS:
 		//  promote if within <article> <header>?
@@ -115,7 +140,7 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 		if c.total() > 0 {
 			candidates = append(candidates, c)
 		}
-	})
+	}
 
 	sort.Sort(Reverse{candidates})
 
@@ -134,6 +159,7 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 	return "", nil, errors.New("couldn't find a headline")
 }
 
+/*
 func insideArticle(s *goquery.Selection) bool {
 	if s.Closest("article, #post, .article, .story-body").Length() > 0 {
 		return true
@@ -141,3 +167,4 @@ func insideArticle(s *goquery.Selection) bool {
 
 	return false
 }
+*/
