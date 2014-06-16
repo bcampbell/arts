@@ -188,6 +188,7 @@ func openHttp(artURL string) (io.ReadCloser, error) {
 // The plan is to store a big set of example articles in this format:
 // YAML front matter (like in jekyll), with headline, authors etc...
 // The rest of the file has the expected article text.
+// TODO: use a proper YAML encoder, dammit!
 func writeYaml(w io.Writer, art *arts.Article) {
 	// yaml front matter
 	fmt.Fprintf(w, "---\n")
@@ -210,8 +211,8 @@ func writeYaml(w io.Writer, art *arts.Article) {
 		fmt.Fprintf(w, "updated: %s\n", art.Updated)
 	}
 	fmt.Fprintf(w, "publication:\n")
-	fmt.Fprintf(w, "  - name: %s\n", quote(art.Publication.Name))
-	fmt.Fprintf(w, "  - domain: %s\n", quote(art.Publication.Domain))
+	fmt.Fprintf(w, "  name: %s\n", quote(art.Publication.Name))
+	fmt.Fprintf(w, "  domain: %s\n", quote(art.Publication.Domain))
 	fmt.Fprintf(w, "---\n")
 	// the text content
 	fmt.Fprint(w, art.Content)
