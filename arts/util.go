@@ -6,6 +6,7 @@ package arts
 import (
 	"code.google.com/p/cascadia"
 	"code.google.com/p/go.net/html"
+	"code.google.com/p/go.net/html/atom"
 	"code.google.com/p/go.text/unicode/norm"
 	"fmt"
 	"net/url"
@@ -156,14 +157,24 @@ func describeNode(n *html.Node) string {
 	switch n.Type {
 	case html.ElementNode:
 		desc := n.DataAtom.String()
-		id := getAttr(n, "id")
-		if id != "" {
-			desc = desc + "#" + id
-		}
-		// TODO: handle multiple classes (eg "h1.heading.fancy")
-		cls := getAttr(n, "class")
-		if cls != "" {
-			desc = desc + "." + cls
+		if n.DataAtom == atom.Meta {
+			for _, attrName := range []string{"name", "property"} {
+				attrVal := getAttr(n, attrName)
+				if attrVal != "" {
+					desc = fmt.Sprintf("%s[%s=\"%s\"]", n.DataAtom.String(), attrName, attrVal)
+					break
+				}
+			}
+		} else {
+			id := getAttr(n, "id")
+			if id != "" {
+				desc = desc + "#" + id
+			}
+			// TODO: handle multiple classes (eg "h1.heading.fancy")
+			cls := getAttr(n, "class")
+			if cls != "" {
+				desc = desc + "." + cls
+			}
 		}
 		return "<" + desc + ">"
 	case html.TextNode:

@@ -5,23 +5,21 @@ import (
 	"code.google.com/p/go.net/html"
 	"code.google.com/p/go.net/html/atom"
 	"errors"
-	//	"fmt"
+	"fmt"
 	"regexp"
 	"sort"
 	"strings"
 )
 
 var headlinePats = struct {
-	considerSel cascadia.Selector // elements to consider
-	titleSel    cascadia.Selector
-	ogTitleSel  cascadia.Selector
+	considerSel   cascadia.Selector // elements to consider
+	titleSel      cascadia.Selector
+	metaTitlesSel cascadia.Selector // meta tags which have title
 }{
 	cascadia.MustCompile("h1,h2,h3,h4,h5,h6,div,span,th,td"),
 	cascadia.MustCompile("title"),
-	cascadia.MustCompile(`meta[property="og:title"]`),
+	cascadia.MustCompile(`meta[property="og:title"], meta[name="wp_twitter-title"]`),
 }
-
-// TODO: phase out goquery - just use cascadia directly
 
 func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 	dbug := Debug.HeadlineLogger
@@ -42,16 +40,20 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 		cookedTitle = toAlphanumeric(getTextContent(t))
 	}
 
-	t = headlinePats.ogTitleSel.MatchFirst(root)
-	var cookedOgTitle string
-	if t != nil {
-		ogTitle := getAttr(t, "content")
-		cookedOgTitle = toAlphanumeric(ogTitle)
+	// check for any interesting meta tags (og:title etc...)
+	// remember that some sites append the site name to this (eg telegraph,
+	// rolling stone) so we can't just take it verbatim. But it gives us clues...
+	type metaTitle struct {
+		cooked string
+		node   *html.Node
+	}
+	metaTitles := []metaTitle{}
+	for _, metaTitleNode := range headlinePats.metaTitlesSel.MatchAll(root) {
+		cooked := toAlphanumeric(getAttr(metaTitleNode, "content"))
+		metaTitles = append(metaTitles, metaTitle{cooked, metaTitleNode})
 	}
 
 	// TODO: early-out on hatom or schema.org article
-	// but not opengraph og:title (eg telegraph appends " - Telegraph",
-	// rolling stone does similar, others are bound to too)
 
 	for _, el := range headlinePats.considerSel.MatchAll(root) {
 
@@ -101,22 +103,19 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 					c.addPoints((value*4)-1, "score against <title>")
 				}
 
-				if cookedOgTitle != "" {
-					// TEST: like og:title?
-					value := jaccardWordCompare(cookedTxt, cookedOgTitle)
-					c.addPoints((value*4)-1, "score against og::title")
-				}
-
 				// TEST: like the slug?
 				if cookedSlug != "" {
 					value := jaccardWordCompare(cookedTxt, cookedSlug)
 					c.addPoints((value*4)-1, "score against slug")
 				}
 			}
-		}
 
-		// TODO:
-		// TEST: does it appear in likely looking <meta> tags? "Headline" etc...
+			// TEST: likely-looking meta tags
+			for _, metaTitle := range metaTitles {
+				value := jaccardWordCompare(cookedTxt, metaTitle.cooked)
+				c.addPoints((value*4)-1, fmt.Sprintf("score against %s", describeNode(metaTitle.node)))
+			}
+		}
 
 		// TEST: inside an obvious sidebar or <aside>?
 
