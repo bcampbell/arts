@@ -75,7 +75,7 @@ func grabContent(root *html.Node) ([]*html.Node, candidateMap) {
 	dbug := Debug.ContentLogger
 	var candidates = make(candidateMap)
 
-	stripUnlikelyCandidates := false //true
+	stripUnlikelyCandidates := false
 
 	/**
 	 * First, node prepping. Trash nodes that look cruddy (like ones with the class name "comment", etc), and turn divs
@@ -91,6 +91,8 @@ func grabContent(root *html.Node) ([]*html.Node, candidateMap) {
 	for _, node := range allNodes.MatchAll(root) {
 		if stripUnlikelyCandidates {
 			unlikelyMatchString := getAttr(node, "class") + getAttr(node, "id")
+
+			// TODO: this lets through things it shouldn't, eg ".dsq-comment-body"
 			if unlikelyCandidates.MatchString(unlikelyMatchString) == true &&
 				okMaybeItsACandidate.MatchString(unlikelyMatchString) == false &&
 				node.DataAtom != atom.Body {
@@ -186,11 +188,18 @@ func grabContent(root *html.Node) ([]*html.Node, candidateMap) {
 		}
 	}
 
+	dbug.Printf(" %d candidates:\n", len(candidates))
+	for _, c := range candidates {
+		dbug.Printf("  %f: %s\n", c.total(), describeNode(c.node()))
+	}
+	//html.Render(os.Stdout, topCandidate.node())
+
 	/**
 	 * Now that we have the top candidate, look through its siblings for content that might also be related.
 	 * Things like preambles, content split by ads that we removed, etc.
 	**/
 
+	dbug.Printf("picked %s (score %f)\n", describeNode(topCandidate.node()), topCandidate.total())
 	siblingScoreThreshold := topCandidate.total() * 0.2
 	if siblingScoreThreshold < 10 {
 		siblingScoreThreshold = 10
@@ -274,6 +283,8 @@ func getClassWeight(n *html.Node) float64 {
 // Remove all extraneous crap in the content - related articles, share buttons etc...
 // (equivalent to prepArticle() in readbility.js)
 func removeCruft(contentNodes []*html.Node, candidates candidateMap) {
+	dbug := Debug.ContentLogger
+	dbug.Printf("Cruft removal\n")
 
 	zapConditionally(contentNodes, "form", candidates)
 	zap(contentNodes, "object")
@@ -321,19 +332,21 @@ func zap(contentNodes []*html.Node, tagSel string) {
  * "Fishy" is an algorithm based on content length, classnames, link density, number of images & embeds, etc.
  **/
 func zapConditionally(contentNodes []*html.Node, tagSel string, candidates candidateMap) {
+	dbug := Debug.ContentLogger
 
 	doomed := make([]*html.Node, 0, 32)
 	sel := cascadia.MustCompile(tagSel)
 	for _, e := range contentNodes {
-		toRemove := false
 		for _, node := range sel.MatchAll(e) {
 			weight := getClassWeight(node)
 			var contentScore float64 = 0.0
 			if c, ok := candidates[node]; ok {
 				contentScore = c.total()
 			}
+			toRemove := false
 
 			if weight+contentScore < 0 {
+				dbug.Printf("kill %s: weight + contentScore < 0\n", describeNode(node))
 				toRemove = true
 			} else {
 				textContent := getTextContent(node)
@@ -351,18 +364,25 @@ func zapConditionally(contentNodes []*html.Node, tagSel string, candidates candi
 					linkDensity := getLinkDensity(node)
 
 					if img > p {
+						dbug.Printf("kill %s: more images than paras\n", describeNode(node))
 						toRemove = true
 					} else if li > p && node.DataAtom != atom.Ul && node.DataAtom != atom.Ol {
+						dbug.Printf("kill %s: more <li>s than paras\n", describeNode(node))
 						toRemove = true
 					} else if input > int(math.Floor(float64(p)/3.0)) {
+						dbug.Printf("kill %s: too many <input>s\n", describeNode(node))
 						toRemove = true
 					} else if len(textContent) < 25 && (img == 0 || img > 2) {
+						dbug.Printf("kill %s: too little text\n", describeNode(node))
 						toRemove = true
 					} else if weight < 25 && linkDensity > 0.2 {
+						dbug.Printf("kill %s: link density too high\n", describeNode(node))
 						toRemove = true
 					} else if weight >= 25 && linkDensity > 0.5 {
+						dbug.Printf("kill %s: link density too high 2\n", describeNode(node))
 						toRemove = true
 					} else if (embedCount == 1 && len(textContent) < 75) || embedCount > 1 {
+						dbug.Printf("kill %s: embedCount\n", describeNode(node))
 						toRemove = true
 					}
 
