@@ -46,6 +46,7 @@ var elementWhitelist = map[atom.Atom][]atom.Atom{
 	// Text-level semantics
 	atom.A:      {atom.Href},
 	atom.Em:     {},
+	atom.Font:   {},
 	atom.Strong: {},
 	atom.Small:  {},
 	atom.S:      {},
