@@ -4,6 +4,7 @@ import (
 	"code.google.com/p/cascadia"
 	"code.google.com/p/go.net/html"
 	"code.google.com/p/go.net/html/atom"
+	"regexp"
 	"strings"
 )
 
@@ -119,7 +120,7 @@ func filterAttrs(n *html.Node, fn func(*html.Attribute) bool) {
 // Tidy up extracted content into something that'll produce reasonable html when
 // rendered
 // - remove comments
-// - trim whitespace
+// - trim empty text nodes
 // - TODO make links absolute
 func tidyNode(node *html.Node) {
 	var commentSel cascadia.Selector = func(n *html.Node) bool {
@@ -136,15 +137,32 @@ func tidyNode(node *html.Node) {
 	for _, n := range commentSel.MatchAll(node) {
 		n.Parent.RemoveChild(n)
 	}
-	// trim leading/trailing space in text, and cull empty text nodes
+
+	leadingSpace := regexp.MustCompile(`^\s+`)
+	trailingSpace := regexp.MustCompile(`\s+$`)
+	// trim excessive leading/trailing space in text nodes, and cull empty ones
 	for _, n := range textSel.MatchAll(node) {
-		txt := strings.TrimSpace(n.Data)
-		if len(txt) == 0 {
+		txt := leadingSpace.ReplaceAllStringFunc(n.Data, func(in string) string {
+			if strings.Contains(in, "\n") {
+				return "\n"
+			} else {
+				return " "
+			}
+		})
+		txt = trailingSpace.ReplaceAllStringFunc(n.Data, func(in string) string {
+			if strings.Contains(in, "\n") {
+				return "\n"
+			} else {
+				return " "
+			}
+		})
+		if len(strings.TrimSpace(txt)) == 0 {
 			n.Parent.RemoveChild(n)
 		} else {
 			n.Data = txt
 		}
 	}
+
 	// remove any elements or attrs not on the whitelist
 	for _, n := range elementSel.MatchAll(node) {
 		allowedAttrs, whiteListed := elementWhitelist[n.DataAtom]
