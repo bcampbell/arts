@@ -191,6 +191,7 @@ func grabContent(root *html.Node) ([]*html.Node, candidateMap) {
 	dbug.Printf(" %d candidates:\n", len(candidates))
 	for _, c := range candidates {
 		dbug.Printf("  %f: %s\n", c.total(), describeNode(c.node()))
+		c.dump(dbug)
 	}
 	//html.Render(os.Stdout, topCandidate.node())
 
