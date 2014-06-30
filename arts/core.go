@@ -142,6 +142,9 @@ func ExtractHTML(raw_html []byte, artUrl string) (*Article, error) {
 	}
 
 	art.CanonicalURL, art.URLs = grabURLs(root, u)
+	if art.CanonicalURL != "" {
+		artUrl = art.CanonicalURL
+	}
 
 	art.Publication = grabPublication(root, art)
 
@@ -152,7 +155,8 @@ func ExtractHTML(raw_html []byte, artUrl string) (*Article, error) {
 
 	contentNodes, contentScores := grabContent(root)
 	art.Authors = grabAuthors(root, contentNodes, headlineNode)
-	published, updated := grabDates(root, art.CanonicalURL, contentNodes)
+
+	published, updated := grabDates(root, artUrl, contentNodes)
 	if !published.Empty() {
 		art.Published = published.ISOFormat()
 	}
