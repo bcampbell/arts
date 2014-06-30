@@ -31,8 +31,15 @@ var dateSels = struct {
 	hatomUpdated    cascadia.Selector
 }{
 	cascadia.MustCompile(`time, .published, .updated`),
-	cascadia.MustCompile(`meta[property="article:published_time"], meta[name="DCTERMS.created"], meta[name="dashboard_published_date"]`),
-	cascadia.MustCompile(`meta[property="article:modified_time"], meta[name="DCTERMS.modified"], meta[name="dashboard_updated_date"]`),
+	cascadia.MustCompile(`meta[property="article:published_time"], ` +
+		`meta[name="dashboard_published_date"], ` +
+		`meta[name="DC.date.issued"], ` +
+		`meta[name="DCSext.articleFirstPublished"], ` +
+		`meta[name="DCTERMS.created"]`),
+	cascadia.MustCompile(`meta[property="article:modified_time"], ` +
+		`meta[name="DCTERMS.modified"], ` +
+		`meta[name="dashboard_updated_date"], ` +
+		`meta[name="last-modified"]`),
 	cascadia.MustCompile(`time,span,div`),
 	//cascadia.MustCompile(`time,p,span,div,li,td,th,h4,h5,h6,font`),
 	//cascadia.MustCompile(`span`),
@@ -129,11 +136,17 @@ func datesFromMeta(root *html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
 	for _, node := range dateSels.metaPublished.MatchAll(root) {
 		content := getAttr(node, "content")
 		metaPublished = fuzzytime.Extract(content)
+		if metaPublished.HasFullDate() {
+			break
+		}
 	}
 
 	for _, node := range dateSels.metaUpdated.MatchAll(root) {
 		content := getAttr(node, "content")
 		metaUpdated = fuzzytime.Extract(content)
+		if metaUpdated.HasFullDate() {
+			break
+		}
 	}
 
 	return metaPublished, metaUpdated
