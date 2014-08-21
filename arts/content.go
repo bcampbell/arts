@@ -38,6 +38,8 @@ func (candidates candidateMap) get(n *html.Node) candidate {
 // assign initial scoring to a potential content candidate
 func initializeNode(c candidate) {
 	switch c.node().DataAtom {
+	case atom.Article:
+		c.addPoints(8, "<article>")
 	case atom.Div:
 		c.addPoints(5, "<div>")
 	case atom.Pre, atom.Td, atom.Blockquote:
@@ -106,6 +108,8 @@ func grabContent(root *html.Node) ([]*html.Node, candidateMap) {
 			nodesToScore = append(nodesToScore, node)
 		}
 		/* XYZZY TODO: Turn all divs that don't have children block level elements into p's */
+		// concrete example: http://www.theatlantic.com/national/archive/2013/04/the-boston-marathon-bombing-keep-calm-and-carry-on/275014/
+		// all paras are divs.
 	}
 
 	dbug.Printf("%d nodes to score\n", len(nodesToScore))
