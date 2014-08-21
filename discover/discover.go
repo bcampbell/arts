@@ -43,6 +43,9 @@ type DiscovererDef struct {
 	// Hostpat is a regex matching accepted domains
 	// if empty, reject everything on a different domain
 	HostPat string
+
+	// If NoStripQuery is set then article URLs won't have the query part zapped
+	NoStripQuery bool
 }
 
 type DiscoverStats struct {
@@ -103,7 +106,7 @@ func NewDiscoverer(cfg DiscovererDef) (*Discoverer, error) {
 
 	// defaults
 	disc.StripFragments = true
-	disc.StripQuery = true
+	disc.StripQuery = !cfg.NoStripQuery
 	disc.ErrorLog = NullLogger{}
 	disc.InfoLog = NullLogger{}
 	return disc, nil
