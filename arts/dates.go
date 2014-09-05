@@ -159,7 +159,7 @@ func datesFromMeta(root *html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
 //
 //
 //
-func grabDates(root *html.Node, artURL string, contentNodes []*html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
+func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headlineNode *html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
 	dbug := Debug.DatesLogger
 	var publishedCandidates = make(candidateList, 0, 32)
 	var updatedCandidates = make(candidateList, 0, 32)
@@ -172,6 +172,16 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node) (fuzzy
 
 	if metaPublished.HasFullDate() && metaUpdated.HasFullDate() {
 		return metaPublished, metaUpdated
+	}
+
+	// get a list of elements between headline and content
+	betwixt := []*html.Node{}
+	if headlineNode != nil && len(contentNodes) > 0 {
+		var err error
+		betwixt, err = interveningElements(headlineNode, contentNodes[0])
+		if err != nil {
+			betwixt = []*html.Node{}
+		}
 	}
 
 	for _, node := range dateSels.tags.MatchAll(root) {
@@ -278,6 +288,16 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node) (fuzzy
 		}
 
 		// TODO: TEST: agrees with <meta> tag values?
+
+		// TEST: between headline and content?
+
+		for _, e := range betwixt {
+			if e == node {
+				updatedC.addPoints(1, "between headline and content")
+				publishedC.addPoints(1, "between headline and content")
+				break
+			}
+		}
 
 		// TODO: TEST - proximity to top or bottom of article content
 		// TODO: check for value-title pattern?
