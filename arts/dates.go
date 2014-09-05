@@ -8,8 +8,9 @@ import (
 	"regexp"
 	//	"strings"
 	//	"errors"
-	//	"fmt"
+	"fmt"
 	"github.com/bcampbell/fuzzytime"
+	"sort"
 	"strconv"
 )
 
@@ -18,8 +19,50 @@ type dateCandidate struct {
 	dt fuzzytime.DateTime
 }
 
-func newDateCandidate(n *html.Node, txt string, dt fuzzytime.DateTime) candidate {
+func newDateCandidate(n *html.Node, txt string, dt fuzzytime.DateTime) *dateCandidate {
 	return &dateCandidate{standardCandidate{n, txt, 0, 1, make([]string, 0, 4)}, dt}
+}
+
+// dateCandidateList implements a sortable set of Candidates
+type dateCandidateList []*dateCandidate
+
+func (s dateCandidateList) Len() int           { return len(s) }
+func (s dateCandidateList) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s dateCandidateList) Less(i, j int) bool { return s[i].total() < s[j].total() }
+
+// Sort candidates according to score (highest first)
+func (s dateCandidateList) Sort() {
+	sort.Sort(Reverse{s})
+}
+
+// Best returns the best candidate(s) (there can be more than one at the
+// top with the same score)
+func (s dateCandidateList) Best() (*dateCandidate, error) {
+	if len(s) == 0 {
+		return nil, fmt.Errorf("No candidates")
+	}
+
+	// collect the top (indentically-scoring) candidates
+	best := []*dateCandidate{s[0]}
+	score := s[0].total()
+	for i := 1; i < len(s); i++ {
+		if s[i].total() != score {
+			break
+		}
+		best = append(best, s[i])
+	}
+
+	// check the dates aren't in conflict
+	for i := 0; i < len(best); i++ {
+		for j := i + 1; j < len(best); j++ {
+			if best[i].dt.Conflicts(&best[j].dt) {
+				return nil, fmt.Errorf("Top candidates in conflict")
+			}
+		}
+	}
+
+	// if we get this far, we're fine.
+	return best[0], nil
 }
 
 var dateSels = struct {
@@ -161,8 +204,8 @@ func datesFromMeta(root *html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
 //
 func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headlineNode *html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
 	dbug := Debug.DatesLogger
-	var publishedCandidates = make(candidateList, 0, 32)
-	var updatedCandidates = make(candidateList, 0, 32)
+	var publishedCandidates = make(dateCandidateList, 0, 32)
+	var updatedCandidates = make(dateCandidateList, 0, 32)
 
 	// there might be an obvious date in the URL
 	urlDate := dateFromURL(artURL)
@@ -216,6 +259,18 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headli
 
 		publishedC := newDateCandidate(node, txt, dt)
 		updatedC := newDateCandidate(node, txt, dt)
+
+		// prefer datetimes over just dates (or times)
+		if dt.HasYear() && dt.HasMonth() && dt.HasDay() {
+			if dt.HasHour() && dt.HasMinute() {
+				publishedC.addPoints(0.75, "datetime")
+				updatedC.addPoints(0.75, "datetime")
+			}
+		}
+		if dt.Date.Empty() {
+			publishedC.addPoints(-0.5, "no date")
+			updatedC.addPoints(-0.5, "no date")
+		}
 
 		// TEST: is machine readable?
 		if node.DataAtom == atom.Time {
@@ -331,7 +386,7 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headli
 
 	// pick best candidate for published
 	if best, err := publishedCandidates.Best(); err == nil {
-		published = best.(*dateCandidate).dt
+		published = best.dt
 	} else {
 		dbug.Printf("published: Didn't pick any (%s)", err)
 	}
@@ -349,7 +404,7 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headli
 		updated = metaUpdated
 	} else {
 		if best, err := updatedCandidates.Best(); err == nil {
-			updated = best.(*dateCandidate).dt
+			updated = best.dt
 		} else {
 			dbug.Printf("updated: Didn't pick any (%s)", err)
 		}

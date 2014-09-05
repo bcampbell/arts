@@ -70,7 +70,7 @@ func (c *standardCandidate) node() *html.Node {
 	return c.n
 }
 
-// Candidate implements a sortable set of Candidates
+// candidateList implements a sortable set of Candidates
 type candidateList []candidate
 
 func (s candidateList) Len() int           { return len(s) }
@@ -80,19 +80,4 @@ func (s candidateList) Less(i, j int) bool { return s[i].total() < s[j].total() 
 // Sort candidates according to score (highest first)
 func (s candidateList) Sort() {
 	sort.Sort(Reverse{s})
-}
-
-// picks best candidate
-// fails if multiple top candidates (if it's ambiguous we can't trust any of em)
-func (s candidateList) Best() (candidate, error) {
-	if len(s) == 0 {
-		return nil, fmt.Errorf("no candidates")
-	}
-
-	if len(s) > 1 {
-		if s[0].total() == s[1].total() {
-			return nil, fmt.Errorf("multiple top candidates with same score")
-		}
-	}
-	return s[0], nil
 }
