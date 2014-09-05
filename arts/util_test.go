@@ -1,7 +1,7 @@
 package arts
 
 import (
-	//	"code.google.com/p/cascadia"
+	"code.google.com/p/cascadia"
 	"code.google.com/p/go.net/html"
 	//	"fmt"
 	//	"os"
@@ -130,5 +130,92 @@ func TestJaccardWordCompare(t *testing.T) {
 		if math.Abs(dat.expected-got) > 0.001 {
 			t.Errorf("jaccardWordCompare('%s','%s') = %v (expected %v)", dat.haystack, dat.needle, got, dat.expected)
 		}
+	}
+}
+
+var walkHTML string = `<html>
+  <head></head>
+  <body>
+    <div id="a">
+      <div id="b">
+        <div id="c">
+        </div>
+        <div id="d">
+        </div>
+      </div>
+    </div>
+    <div id="e">
+    </div>
+  </body>
+</html>
+`
+
+func getWalkDoc() *html.Node {
+	doc, err := html.Parse(strings.NewReader(walkHTML))
+	if err != nil {
+		panic(err)
+	}
+	return doc
+}
+
+func TestNextElement(t *testing.T) {
+
+	cases := []struct {
+		start    string
+		expected string
+	}{
+		{"html", "head"},
+		{"head", "body"},
+		{"#c", "#d"},
+		{"#d", "#e"},
+	}
+
+	doc := getWalkDoc()
+
+	for _, dat := range cases {
+		e := cascadia.MustCompile(dat.start).MatchFirst(doc)
+		expect := cascadia.MustCompile(dat.expected).MatchFirst(doc)
+
+		got := nextElement(e)
+
+		//fmt.Printf("%s => %s\n", describeNode(e), describeNode(got))
+		if got != expect {
+			t.Errorf("nextElement('%s') got %s (expected %s)", dat.start, describeNode(got), dat.expected)
+		}
+	}
+}
+
+func TestInterveningElements(t *testing.T) {
+
+	cases := []struct {
+		e1Sel        string
+		e2Sel        string
+		expectedSels []string
+	}{
+		{"#a", "#e", []string{"#b", "#c", "#d"}},
+		{"html", "body", []string{"head"}},
+	}
+
+	doc := getWalkDoc()
+
+	for _, dat := range cases {
+		e1 := cascadia.MustCompile(dat.e1Sel).MatchFirst(doc)
+		e2 := cascadia.MustCompile(dat.e2Sel).MatchFirst(doc)
+		expected := []*html.Node{}
+		for _, sel := range dat.expectedSels {
+			expected = append(expected, cascadia.MustCompile(sel).MatchFirst(doc))
+		}
+
+		got, err := interveningElements(e1, e2)
+		if err != nil {
+			t.Errorf("interveningElements(%s,%s) failed: %s", dat.e1Sel, dat.e2Sel, err)
+			break
+		}
+
+		if len(got) != len(expected) {
+			t.Errorf("interveningElements(%s,%s) got: %v  expected: %v", dat.e1Sel, dat.e2Sel, got, expected)
+			break
+		}
+		// TODO: elementwise compare
 	}
 }

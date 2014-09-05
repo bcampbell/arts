@@ -240,3 +240,52 @@ func jaccardWordCompare(a string, b string) float64 {
 	unionCnt := float64(len(lookup))
 	return intersectCnt / unionCnt
 }
+
+func nextNode(n *html.Node) *html.Node {
+	if n.FirstChild != nil {
+		return n.FirstChild
+	}
+	if n.NextSibling != nil {
+		return n.NextSibling
+	}
+	for {
+		n = n.Parent
+		if n == nil {
+			return nil
+		}
+		if n.NextSibling != nil {
+			return n.NextSibling
+		}
+
+	}
+	return nil
+}
+
+func nextElement(e *html.Node) *html.Node {
+	for {
+		e = nextNode(e)
+		if e == nil {
+			return nil
+		}
+		if e.Type == html.ElementNode {
+			return e
+		}
+	}
+}
+
+func interveningElements(e1, e2 *html.Node) ([]*html.Node, error) {
+	out := []*html.Node{}
+	n := e1
+	for {
+		n = nextElement(n)
+		if n == e2 {
+			break
+		}
+		if n == nil {
+			return nil, fmt.Errorf("e2 not found")
+		}
+
+		out = append(out, n)
+	}
+	return out, nil
+}
