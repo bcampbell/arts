@@ -85,7 +85,7 @@ var dateSels = struct {
 		`meta[name="DCTERMS.modified"], ` +
 		`meta[name="dashboard_updated_date"], ` +
 		`meta[name="last-modified"]`),
-	cascadia.MustCompile(`time,span,div`),
+	cascadia.MustCompile(`time,span,div,p[class],p[id]`),
 	//cascadia.MustCompile(`time,p,span,div,li,td,th,h4,h5,h6,font`),
 	//cascadia.MustCompile(`span`),
 	cascadia.MustCompile(`hentry .published`),
@@ -253,6 +253,7 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headli
 		if len(txt) < 6 || len(txt) > 150 {
 			continue // too short
 		}
+		dbug.Printf("considering %s\n", describeNode(node))
 
 		// got some date/time info?
 		dt := fuzzytime.Extract(txt)
