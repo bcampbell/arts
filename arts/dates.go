@@ -253,15 +253,15 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headli
 		if len(txt) < 6 || len(txt) > 150 {
 			continue // too short
 		}
-		dbug.Printf("considering %s\n", describeNode(node))
 
 		// got some date/time info?
-		dt := fuzzytime.Extract(txt)
+		dt := fuzzytime.WesternContext.Extract(txt)
 		// TODO: ensure enough date info to be useful
 		if dt.Empty() {
 			continue // nope
 		}
 
+		//		dbug.Printf("considering %s (%s) '%s'\n", describeNode(node), dt.String(), txt)
 		publishedC := newDateCandidate(node, txt, dt)
 		updatedC := newDateCandidate(node, txt, dt)
 
@@ -347,14 +347,6 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headli
 			}
 		}
 
-		// TEST: matches date info in URL?
-		if !urlDate.Empty() {
-			if urlDate.Conflicts(&dt.Date) {
-				updatedC.addPoints(-1, "clash with date in url")
-				publishedC.addPoints(-1, "clash with date in url")
-			}
-		}
-
 		// TODO: TEST: agrees with <meta> tag values?
 
 		// TEST: between headline and content?
@@ -364,6 +356,19 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headli
 				updatedC.addPoints(1, "between headline and content")
 				publishedC.addPoints(1, "between headline and content")
 				break
+			}
+		}
+
+		// TEST: matches date info in URL?
+		// (if not, fill in any missing fields using the URL date!)
+		if !urlDate.Empty() {
+			if urlDate.Conflicts(&dt.Date) {
+				updatedC.addPoints(-1, "clash with date in url")
+				publishedC.addPoints(-1, "clash with date in url")
+			} else {
+				dt.Date.Merge(&urlDate)
+				updatedC.dt = dt
+				publishedC.dt = dt
 			}
 		}
 
