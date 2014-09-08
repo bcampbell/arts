@@ -35,8 +35,8 @@ func (s dateCandidateList) Sort() {
 	sort.Sort(Reverse{s})
 }
 
-// Best returns the best candidate(s) (there can be more than one at the
-// top with the same score)
+// Best returns the best candidate. Returns an error if there are
+// multiple candidates in the top spot which are in conflict.
 func (s dateCandidateList) Best() (*dateCandidate, error) {
 	if len(s) == 0 {
 		return nil, fmt.Errorf("No candidates")
@@ -72,6 +72,8 @@ var dateSels = struct {
 	tags            cascadia.Selector
 	hatomPublished  cascadia.Selector
 	hatomUpdated    cascadia.Selector
+	rdfaPublished   cascadia.Selector
+	rdfaUpdated     cascadia.Selector
 }{
 	cascadia.MustCompile(`time, .published, .updated`),
 	cascadia.MustCompile(`meta[property="article:published_time"], ` +
@@ -88,6 +90,8 @@ var dateSels = struct {
 	//cascadia.MustCompile(`span`),
 	cascadia.MustCompile(`hentry .published`),
 	cascadia.MustCompile(`hentry .updated`),
+	cascadia.MustCompile(`[property="dc:issued"],[property="dc:created"]`),
+	cascadia.MustCompile(`[property="dc:updated"]`),
 }
 
 var datePats = struct {
@@ -317,6 +321,14 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headli
 		}
 		if datePats.updatedClasses.MatchString(getAttr(node, "id")) {
 			updatedC.addPoints(1, "likely id for updated")
+		}
+
+		// TEST: RDFa property="dc:issued"  (issued, updated, created etc)
+		if dateSels.rdfaPublished.Match(node) {
+			publishedC.addPoints(1, "likely rdfa markup for published")
+		}
+		if dateSels.rdfaUpdated.Match(node) {
+			updatedC.addPoints(1, "likely rdfa markup for updated")
 		}
 
 		// TEST: within article content?
