@@ -85,7 +85,7 @@ var dateSels = struct {
 		`meta[name="DCTERMS.modified"], ` +
 		`meta[name="dashboard_updated_date"], ` +
 		`meta[name="last-modified"]`),
-	cascadia.MustCompile(`time,span,div,p[class],p[id]`),
+	cascadia.MustCompile(`time,span,div,p`),
 	//cascadia.MustCompile(`time,p,span,div,li,td,th,h4,h5,h6,font`),
 	//cascadia.MustCompile(`span`),
 	cascadia.MustCompile(`hentry .published`),
@@ -182,7 +182,7 @@ func datesFromMeta(root *html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
 
 	for _, node := range dateSels.metaPublished.MatchAll(root) {
 		content := getAttr(node, "content")
-		metaPublished = fuzzytime.Extract(content)
+		metaPublished, _, _ = fuzzytime.Extract(content)
 		if metaPublished.HasFullDate() {
 			break
 		}
@@ -190,7 +190,7 @@ func datesFromMeta(root *html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
 
 	for _, node := range dateSels.metaUpdated.MatchAll(root) {
 		content := getAttr(node, "content")
-		metaUpdated = fuzzytime.Extract(content)
+		metaUpdated, _, _ = fuzzytime.Extract(content)
 		if metaUpdated.HasFullDate() {
 			break
 		}
@@ -255,15 +255,27 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headli
 		}
 
 		// got some date/time info?
-		dt := fuzzytime.WesternContext.Extract(txt)
-		// TODO: ensure enough date info to be useful
+		dt, spans, _ := fuzzytime.WesternContext.Extract(txt)
 		if dt.Empty() {
-			continue // nope
+			continue // no data, (or there was an error)
 		}
 
-		//		dbug.Printf("considering %s (%s) '%s'\n", describeNode(node), dt.String(), txt)
+		//dbug.Printf("considering %s (%s) '%f'\n", describeNode(node), dt.String(), dateProportion)
 		publishedC := newDateCandidate(node, txt, dt)
 		updatedC := newDateCandidate(node, txt, dt)
+
+		var dateProportion float64
+		if node.DataAtom == atom.P {
+			// for paragraphs, calculate proportion of text which is date/time
+			mcnt := 0
+			for _, span := range spans {
+				mcnt += span.End - span.Begin
+			}
+			dateProportion = float64(mcnt) / float64(len(txt))
+			if dateProportion < 0.5 {
+				continue // too much text, not enough date.
+			}
+		}
 
 		// prefer datetimes over just dates (or times)
 		if dt.HasYear() && dt.HasMonth() && dt.HasDay() {
