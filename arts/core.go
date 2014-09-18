@@ -27,8 +27,8 @@ type Author struct {
 }
 
 type Keyword struct {
-	Name string
-	URL  string
+	Name string `json:"name"`
+	URL  string `json:"url,omitempty"`
 }
 
 type Publication struct {
