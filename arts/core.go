@@ -26,6 +26,11 @@ type Author struct {
 	Twitter string
 }
 
+type Keyword struct {
+	Name string `json:"name"`
+	URL  string `json:"url,omitempty"`
+}
+
 type Publication struct {
 	Name   string `json:"name,omitempty"`
 	Domain string `json:"domain,omitempty"`
@@ -48,6 +53,7 @@ type Article struct {
 	Published   string      `json:"published,omitempty"`
 	Updated     string      `json:"updated,omitempty"`
 	Publication Publication `json:"publication,omitempty"`
+	Keywords    []Keyword   `json:"keywords,omitempty"`
 
 	// TODO:
 	// Language
@@ -147,6 +153,8 @@ func ExtractHTML(raw_html []byte, artUrl string) (*Article, error) {
 	}
 
 	art.Publication = grabPublication(root, art)
+
+	art.Keywords = grabKeywords(root)
 
 	headline, headlineNode, err := grabHeadline(root, artUrl)
 	if err == nil {

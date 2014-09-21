@@ -213,6 +213,15 @@ func writeYaml(w io.Writer, art *arts.Article) {
 	fmt.Fprintf(w, "publication:\n")
 	fmt.Fprintf(w, "  name: %s\n", quote(art.Publication.Name))
 	fmt.Fprintf(w, "  domain: %s\n", quote(art.Publication.Domain))
+	if len(art.Keywords) > 0 {
+		fmt.Fprintf(w, "keywords:\n")
+		for _, kw := range art.Keywords {
+			fmt.Fprintf(w, "  - name: %s\n", quote(kw.Name))
+			if kw.URL != "" {
+				fmt.Fprintf(w, "  - url: %s\n", quote(kw.URL))
+			}
+		}
+	}
 	fmt.Fprintf(w, "---\n")
 	// the text content
 	fmt.Fprint(w, art.Content)
