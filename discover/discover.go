@@ -123,11 +123,11 @@ func (disc *Discoverer) Run(client *http.Client) (LinkSet, error) {
 	queued.Add(disc.StartURL)
 
 	for len(queued) > 0 {
-		u := queued.Pop()
-		seen.Add(u)
+		pageURL := queued.Pop()
+		seen.Add(pageURL)
 		//
 
-		root, err := disc.fetchAndParse(client, &u)
+		root, err := disc.fetchAndParse(client, &pageURL)
 		if err != nil {
 			disc.ErrorLog.Printf("%s\n", err.Error())
 			disc.Stats.ErrorCount++
@@ -149,13 +149,13 @@ func (disc *Discoverer) Run(client *http.Client) (LinkSet, error) {
 			}
 		}
 
-		foo, err := disc.findArticles(root)
+		foo, err := disc.findArticles(&pageURL, root)
 		if err != nil {
 			return nil, err
 		}
 		arts.Merge(foo)
 
-		disc.InfoLog.Printf("Visited %s, found %d articles\n", u.String(), len(foo))
+		disc.InfoLog.Printf("Visited %s, found %d articles\n", pageURL.String(), len(foo))
 	}
 
 	return arts, nil
@@ -185,41 +185,51 @@ func (disc *Discoverer) fetchAndParse(client *http.Client, pageURL *url.URL) (*h
 
 var aSel cascadia.Selector = cascadia.MustCompile("a")
 
-func (disc *Discoverer) findArticles(root *html.Node) (LinkSet, error) {
+func (disc *Discoverer) findArticles(baseURL *url.URL, root *html.Node) (LinkSet, error) {
 	arts := make(LinkSet)
 	for _, a := range aSel.MatchAll(root) {
-		// fetch url and extend to absolute
-		link, err := disc.StartURL.Parse(GetAttr(a, "href"))
+		u, err := disc.CookArticleURL(baseURL, GetAttr(a, "href"))
 		if err != nil {
 			continue
 		}
-
-		if !disc.isHostGood(link.Host) {
-			continue
-		}
-
-		foo := link.RequestURI()
-		accept := false
-		for _, pat := range disc.ArtPats {
-			if pat.MatchString(foo) {
-				accept = true
-				break
-			}
-		}
-		if !accept {
-			continue
-		}
-
-		if disc.StripFragments {
-			link.Fragment = ""
-		}
-		if disc.StripQuery {
-			link.RawQuery = ""
-		}
-
-		arts[*link] = true
+		arts[*u] = true
 	}
 	return arts, nil
+}
+
+func (disc *Discoverer) CookArticleURL(baseURL *url.URL, artLink string) (*url.URL, error) {
+	// parse, extending to absolute
+	u, err := baseURL.Parse(artLink)
+	if err != nil {
+		return nil, err
+	}
+
+	// on a host we accept?
+	if !disc.isHostGood(u.Host) {
+		return nil, fmt.Errorf("host rejected (%s)", u.Host)
+	}
+
+	// matches one of our url forms
+	foo := u.RequestURI()
+	accept := false
+	for _, pat := range disc.ArtPats {
+		if pat.MatchString(foo) {
+			accept = true
+			break
+		}
+	}
+	if !accept {
+		return nil, fmt.Errorf("url rejected")
+	}
+
+	// apply our sanitising rules for this site
+	if disc.StripFragments {
+		u.Fragment = ""
+	}
+	if disc.StripQuery {
+		u.RawQuery = ""
+	}
+	return u, nil
 }
 
 func (disc *Discoverer) findNavLinks(root *html.Node) (LinkSet, error) {
