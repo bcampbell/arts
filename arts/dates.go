@@ -230,6 +230,7 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headli
 			betwixt = []*html.Node{}
 		}
 	}
+	betwixtValue := 1.0
 
 	for _, node := range dateSels.tags.MatchAll(root) {
 
@@ -365,8 +366,10 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headli
 
 		for _, e := range betwixt {
 			if e == node {
-				updatedC.addPoints(1, "between headline and content")
-				publishedC.addPoints(1, "between headline and content")
+				// first one preferred
+				updatedC.addPoints(betwixtValue, "between headline and content")
+				publishedC.addPoints(betwixtValue, "between headline and content")
+				betwixtValue *= 0.9
 				break
 			}
 		}
@@ -435,6 +438,10 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headli
 	} else {
 		if best, err := updatedCandidates.Best(); err == nil {
 			updated = best.dt
+			// if time only, use date from published
+			if updated.Date.Empty() && !updated.Time.Empty() {
+				updated.Date = published.Date
+			}
 		} else {
 			dbug.Printf("updated: Didn't pick any (%s)", err)
 		}
