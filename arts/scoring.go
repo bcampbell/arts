@@ -81,3 +81,11 @@ func (s candidateList) Less(i, j int) bool { return s[i].total() < s[j].total() 
 func (s candidateList) Sort() {
 	sort.Sort(Reverse{s})
 }
+
+func (s candidateList) buildMap() map[*html.Node]candidate {
+	out := map[*html.Node]candidate{}
+	for _, c := range s {
+		out[c.node()] = c
+	}
+	return out
+}
