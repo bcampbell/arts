@@ -7,7 +7,7 @@ import (
 	//"github.com/matrixik/goquery"
 	"code.google.com/p/cascadia"
 	"regexp"
-	//	"strings"
+	"strings"
 )
 
 type authorCandidateMap map[*html.Node]candidate
@@ -70,7 +70,7 @@ var bylineContainerPats = struct {
 	regexp.MustCompile(`(?i)stand-first|standfirst|kicker|dek|articleTagline|tagline`), // also sub-heading, sub-hed, deck?
 	cascadia.MustCompile("article header"),
 	cascadia.MustCompile(`[itemscope][itemtype="http://schema.org/Article"]`),
-	regexp.MustCompile(`(?i)comment|disqus|livefyre|remark|conversation`),
+	regexp.MustCompile(`(?i)\b(?:comment|disqus|livefyre|remark|conversation)\b`),
 	regexp.MustCompile(`(?i)\b(?:combx|comment|community|disqus|livefyre|menu|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|promo|sponsor|shopping|tweet|twitter|facebook)\b`),
 }
 
@@ -127,7 +127,6 @@ func rateAuthorNode(c candidate, contentNodes []*html.Node) {
 	hentrySel := cascadia.MustCompile(".hentry")
 	hcardSel := cascadia.MustCompile(".vcard")
 	hcardAuthorSel := cascadia.MustCompile(".vcard.author")
-	relAuthorSel := cascadia.MustCompile(`a[rel="author"]`)
 	itemPropAuthorSel := cascadia.MustCompile(`[itemprop="author"]`)
 
 	// likely-looking author urls
@@ -147,9 +146,14 @@ func rateAuthorNode(c candidate, contentNodes []*html.Node) {
 		}
 	}
 
+	rel := strings.TrimSpace(strings.ToLower(getAttr(el, "rel")))
+
 	// TEST: rel="author"
-	if relAuthorSel.Match(el) {
+	if rel == "author" {
 		c.addPoints(2, "rel-author")
+	}
+	if rel == "tag" {
+		c.addPoints(-2, "rel-tag")
 	}
 
 	// TEST: likely other indicators in class/id?
