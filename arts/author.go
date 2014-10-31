@@ -6,6 +6,7 @@ import (
 	"fmt"
 	//"github.com/matrixik/goquery"
 	"code.google.com/p/cascadia"
+	"github.com/bcampbell/arts/arts/byline"
 	"regexp"
 	"strings"
 )
@@ -47,9 +48,11 @@ func (candidates authorCandidateMap) descendants(c candidate) []candidate {
 */
 
 var authorPats = struct {
-	bylineIndicativeText *regexp.Regexp
-	likelyClassPat       *regexp.Regexp
+	indicativeStartTextPat *regexp.Regexp
+	bylineIndicativeText   *regexp.Regexp
+	likelyClassPat         *regexp.Regexp
 }{
+	regexp.MustCompile(`(?i)^\s*(by|text by|posted by|written by|exclusive by|reviewed by|published by|von)\b[:]?\s*`),
 	regexp.MustCompile(`(?i)\s*\b(by|text by|posted by|written by|exclusive by|reviewed by|report|published by|photographs by|von)\b[:]?\s*`),
 	regexp.MustCompile(`(?i)name|byline|by-line|by_line|author|writer|credits|storycredit|firma`),
 }
@@ -156,6 +159,11 @@ func rateAuthorNode(c candidate, contentNodes []*html.Node) {
 		c.addPoints(-2, "rel-tag")
 	}
 
+	// TEST: schema.org author
+	if itemPropAuthorSel.Match(el) {
+		c.addPoints(2, `itemprop="author"`)
+	}
+
 	// TEST: likely other indicators in class/id?
 	if authorPats.likelyClassPat.MatchString(getAttr(el, "class")) {
 		c.addPoints(1, "indicative class")
@@ -164,15 +172,15 @@ func rateAuthorNode(c candidate, contentNodes []*html.Node) {
 		c.addPoints(1, "indicative id")
 	}
 
-	// TEST: schema.org author
-	if itemPropAuthorSel.Match(el) {
-		c.addPoints(2, `itemprop="author"`)
-	}
-
 	//    TEST: looks like a name?
 	nameScore := rateName(c.txt())
 	if nameScore != 0 {
 		c.addPoints(nameScore, "looks-like-a-name score")
+	}
+
+	// TEST: indicative text ("by ..." etc)
+	if authorPats.indicativeStartTextPat.MatchString(c.txt()) {
+		c.addPoints(1, "indicative text")
 	}
 
 	// TODO:
@@ -279,6 +287,10 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.
 	*/
 
 	// discard authors which contain others
+	dbug.Printf("AUTHOR before culling: %d candidates\n", len(authors))
+	for _, c := range authors {
+		c.dump(dbug)
+	}
 	authors = cullNestedAuthors(authors)
 
 	// PASS TWO: give containers credit for containing likely-looking authors
@@ -305,7 +317,7 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.
 	authors.Sort()
 	bylines.Sort()
 
-	dbug.Printf("AUTHOR: %d candidates\n", len(authors))
+	dbug.Printf("AUTHOR (post cull): %d candidates\n", len(authors))
 	for _, c := range authors {
 		c.dump(dbug)
 	}
@@ -319,7 +331,7 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.
 	// if multiple top-scorers, check they agree.
 	// if not, abort.
 	if len(bylines) > 0 {
-		return extractAuthors(bylines[0].node(), authors)
+		return extractAuthors(bylines[0], authors)
 	}
 
 	// nothing.
@@ -345,14 +357,26 @@ func cullNestedAuthors(authors candidateList) candidateList {
 	return authors
 }
 
-func extractAuthors(container *html.Node, authors candidateList) []Author {
+func extractAuthors(container candidate, authors candidateList) []Author {
 
 	extracted := make([]Author, 0)
+
+	contained := candidateList{}
 	for _, authorC := range authors {
-		if contains(container, authorC.node()) {
-			a := Author{Name: authorC.txt()}
+		if contains(container.node(), authorC.node()) {
+			contained = append(contained, authorC)
+		}
+	}
+
+	if len(contained) == 0 && container.total() >= 2 {
+		// no contained candidates - use self as candidate
+		contained = append(contained, container)
+	}
+
+	for _, authorC := range contained {
+		for _, a := range byline.Parse(authorC.txt()) {
 			// TODO: extract vcard stuff, email, rel-author etc etc
-			extracted = append(extracted, a)
+			extracted = append(extracted, Author{Name: a.Name, Email: a.Email})
 		}
 	}
 	return extracted
