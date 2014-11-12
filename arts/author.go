@@ -11,42 +11,6 @@ import (
 	"strings"
 )
 
-type authorCandidateMap map[*html.Node]candidate
-
-/*
-func (candidates *authorCandidateMap) accumulateScores() {
-	for _, c := range *candidates {
-		for _, p := range parentNodes(c.node()) {
-			if parentC, got := (*candidates)[p]; got {
-				parentC.addPoints(c.total(), fmt.Sprintf("likely-looking child (%s)", describeNode(c.node())))
-			}
-		}
-	}
-}
-
-func (candidates authorCandidateMap) findParents(c candidate) (out []candidate) {
-	n := c.node().Parent
-	for n != nil {
-		if parentC, got := (candidates)[n]; got {
-			out = append(out, parentC)
-		}
-		n = n.Parent
-	}
-	return
-}
-
-func (candidates authorCandidateMap) descendants(c candidate) []candidate {
-	out := make([]candidate, 0)
-
-	walkChildren(c.node(), func(n *html.Node) {
-		if descendant, got := candidates[n]; got {
-			out = append(out, descendant)
-		}
-	})
-	return out
-}
-*/
-
 var authorPats = struct {
 	indicativeStartTextPat *regexp.Regexp
 	bylineIndicativeText   *regexp.Regexp
