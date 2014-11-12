@@ -69,6 +69,10 @@ var locationWords = map[string]struct{}{
 	"london":    struct{}{},
 }
 
+var rejectWords = map[string]struct{}{
+	"the": struct{}{},
+}
+
 // classify text as name, location, job title etc...
 // TODO: cheesy hack for now. Try using a pretrained Naive Bayes thingy here instead!
 func classify(txt string) kind {
@@ -82,8 +86,9 @@ func classify(txt string) kind {
 		words[i] = strings.TrimSpace(strings.ToLower(words[i]))
 	}
 
-	jtWords := 0
-	locWords := 0
+	jtCnt := 0
+	locCnt := 0
+	rejectCnt := 0
 	numCnt := 0
 
 	for _, word := range words {
@@ -91,21 +96,27 @@ func classify(txt string) kind {
 			numCnt++
 		}
 		if _, got := jobTitleWords[word]; got {
-			jtWords++
+			jtCnt++
 		}
 		if _, got := locationWords[word]; got {
-			locWords++
+			locCnt++
+		}
+		if _, got := rejectWords[word]; got {
+			rejectCnt++
 		}
 	}
 
+	if rejectCnt > 0 {
+		return kindUnknown
+	}
 	if numCnt > 0 {
 		return kindUnknown // probably a date or time
 	}
 
-	if locWords > 0 && locWords >= jtWords {
+	if locCnt > 0 && locCnt >= jtCnt {
 		return kindLocation
 	}
-	if jtWords > 0 && jtWords > locWords {
+	if jtCnt > 0 && jtCnt > locCnt {
 		return kindJobTitle
 	}
 
@@ -128,7 +139,7 @@ type Author struct {
 }
 
 // regexp to split up parts of a byline
-var bylineSplitPat = regexp.MustCompile(`(?i)\s*(?:,|(?:\b(?:by|text by|posted by|written by|exclusive by|reviewed by|published by|photographs by|and|by|in|special to|special for)\b))\s*`)
+var bylineSplitPat = regexp.MustCompile(`(?i)\s*(?:,|(?:\b(?:by|text by|posted by|written by|exclusive by|reviewed by|published by|photographs by|and|by|in|for|special to|special for)\b))\s*`)
 var fullStopPat = regexp.MustCompile(`[.]$`)
 
 func Parse(txt string) []Author {

@@ -13,6 +13,8 @@ func ExampleParse() {
 		"Sports Reporter",
 		"Fred Smith",
 		"By SARA KARL. Special to amNewYork April 24, 2014",
+		"By Lucy Hyslop, Special to The Sun",
+		"Daniel Wittenberg for Metro.co.uk",
 	}
 
 	for _, byl := range bylines {
@@ -30,4 +32,5 @@ func ExampleParse() {
 	//
 	// Fred Smith
 	// SARA KARL
+	// Lucy Hyslop
 }
