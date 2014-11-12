@@ -85,7 +85,7 @@ var dateSels = struct {
 		`meta[name="DCTERMS.modified"], ` +
 		`meta[name="dashboard_updated_date"], ` +
 		`meta[name="last-modified"]`),
-	cascadia.MustCompile(`time,span,div,p`),
+	cascadia.MustCompile(`time,span,div,p,li,dl,dd`),
 	//cascadia.MustCompile(`time,p,span,div,li,td,th,h4,h5,h6,font`),
 	//cascadia.MustCompile(`span`),
 	cascadia.MustCompile(`hentry .published`),
