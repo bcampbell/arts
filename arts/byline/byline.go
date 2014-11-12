@@ -128,7 +128,8 @@ type Author struct {
 }
 
 // regexp to split up parts of a byline
-var bylineSplitPat = regexp.MustCompile(`(?i)\s*(?:,|(?:\b(?:by|text by|posted by|written by|exclusive by|reviewed by|published by|photographs by|and|by|in)\b))\s*`)
+var bylineSplitPat = regexp.MustCompile(`(?i)\s*(?:,|(?:\b(?:by|text by|posted by|written by|exclusive by|reviewed by|published by|photographs by|and|by|in|special to|special for)\b))\s*`)
+var fullStopPat = regexp.MustCompile(`[.]$`)
 
 func Parse(txt string) []Author {
 	out := []Author{}
@@ -140,12 +141,16 @@ func Parse(txt string) []Author {
 
 		cleaned := bylineSplitPat.ReplaceAllLiteralString(part, "")
 
-		switch classify(part) {
+		k := classify(part)
+		//fmt.Printf("   '%s' => %v\n", part, k)
+		switch k {
 		case kindName:
 			if cur.Name != "" {
 				out = append(out, cur)
 				cur = Author{}
 			}
+			// parts can end with fullstop, but we don't
+			cleaned = fullStopPat.ReplaceAllLiteralString(cleaned, "")
 			cur.Name = cleaned
 		case kindJobTitle:
 			cur.JobTitle = cleaned
