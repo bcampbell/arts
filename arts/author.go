@@ -13,11 +13,11 @@ import (
 
 var authorPats = struct {
 	indicativeStartTextPat *regexp.Regexp
-	bylineIndicativeText   *regexp.Regexp
-	likelyClassPat         *regexp.Regexp
+	//bylineIndicativeText   *regexp.Regexp
+	likelyClassPat *regexp.Regexp
 }{
 	regexp.MustCompile(`(?i)^\s*(by|text by|posted by|written by|exclusive by|reviewed by|published by|von)\b[:]?\s*`),
-	regexp.MustCompile(`(?i)\s*\b(by|text by|posted by|written by|exclusive by|reviewed by|report|published by|photographs by|von)\b[:]?\s*`),
+	//regexp.MustCompile(`(?i)\s*\b(by|text by|posted by|written by|exclusive by|reviewed by|report|published by|photographs by|von)\b[:]?\s*`),
 	regexp.MustCompile(`(?i)name|byline|by-line|by_line|author|writer|credits|storycredit|firma`),
 }
 
@@ -77,8 +77,8 @@ func rateBylineContainerNode(c candidate) {
 	// TEST: Indicative text? (eg "By...")
 	// TODO: this test needs to be much better
 	/*
-		if authorPats.bylineIndicativeText.MatchString(c.txt()) {
-			c.addPoints(2, "indicative text")
+		if authorPats.indicativeStartTextPat.MatchString(c.txt()) {
+			c.addPoints(0.2, "indicative text")
 		}
 	*/
 
@@ -122,6 +122,11 @@ func rateAuthorNode(c candidate, contentNodes []*html.Node) {
 	if rel == "tag" {
 		c.addPoints(-2, "rel-tag")
 	}
+	if rel == "category" {
+		c.addPoints(-2, "rel-category")
+	}
+	// TODO:
+	// test: penalise if /tag/ /category/ /topic/ whatever link
 
 	// TEST: schema.org author
 	if itemPropAuthorSel.Match(el) {
@@ -150,7 +155,6 @@ func rateAuthorNode(c candidate, contentNodes []*html.Node) {
 	// TODO:
 	//  test: penalise for full sentence text (eg punctuation)
 	//  test: penalise for stopwords ("about" etc)
-	//  test: penalise if rel-tag or /category/ /topic/ whatever link
 	//  test: check for adjacent indicative text
 
 	// TEST: likely-looking link?
@@ -274,15 +278,12 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.
 		}
 	}
 
-	// TODO:
-	//  if no containers, promote best author
-	//  merge nested containers?
-
-	// extract authors inside best container
-
 	authors.Sort()
 	bylines.Sort()
 
+	// TODO: if no containers, promote best author if good enough?
+
+	// extract authors inside best container
 	dbug.Printf("AUTHOR (post cull): %d candidates\n", len(authors))
 	for _, c := range authors {
 		c.dump(dbug)
