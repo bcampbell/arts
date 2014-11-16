@@ -12,13 +12,15 @@ import (
 )
 
 var headlinePats = struct {
-	considerSel   cascadia.Selector // elements to consider
-	titleSel      cascadia.Selector
-	metaTitlesSel cascadia.Selector // meta tags which have title
+	considerSel         cascadia.Selector // elements to consider
+	titleSel            cascadia.Selector
+	metaTitlesSel       cascadia.Selector // meta tags which have title
+	itemPropHeadlineSel cascadia.Selector
 }{
 	cascadia.MustCompile("h1,h2,h3,h4,h5,h6,div,span,th,td"),
 	cascadia.MustCompile("title"),
 	cascadia.MustCompile(`meta[property="og:title"], meta[name="wp_twitter-title"]`),
+	cascadia.MustCompile(`[itemprop="headline"]`),
 }
 
 func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
@@ -68,6 +70,11 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 		cookedTxt := toAlphanumeric(txt)
 
 		c := newStandardCandidate(el, txt)
+
+		// TEST: schema.org headline
+		if headlinePats.itemPropHeadlineSel.Match(el) {
+			c.addPoints(2, `itemprop="headline"`)
+		}
 
 		// TEST: is it a headliney element?
 		tag := el.DataAtom
