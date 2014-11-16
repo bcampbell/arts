@@ -31,7 +31,7 @@ var bylineContainerPats = struct {
 	commentPat          *regexp.Regexp
 	cruftIndicative     *regexp.Regexp
 }{
-	regexp.MustCompile(`(?i)byline|by-line|by_line|author|writer|credits|storycredit|firma`),
+	regexp.MustCompile(`(?i)byline|by-line|by_line|author|writer|credits|storycredit|firma|entry-details`),
 	cascadia.MustCompile("aside"),
 	cascadia.MustCompile("#sidebar, #side"),
 	regexp.MustCompile(`(?i)stand-first|standfirst|kicker|dek|articleTagline|tagline`), // also sub-heading, sub-hed, deck?
@@ -293,16 +293,25 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.
 		c.dump(dbug)
 	}
 
-	// use top byline container
-	// TODO:
-	// if multiple top-scorers, check they agree.
-	// if not, abort.
+	// if there's a 'best' byline container, then discard any authors outside that
+	var bestContainer candidate
 	if len(bylines) > 0 {
-		return extractAuthors(bylines[0], authors)
+		bestContainer = bylines[0]
+		// TODO:
+		// if multiple top-scorers, check they agree.
+		// if not, abort.
+		authors = cullNonContainedAuthors(bestContainer, authors)
+	} else {
+		authors = candidateList{}
 	}
 
-	// nothing.
-	return make([]Author, 0)
+	// if a container, but no authors, use the container as the author
+	if len(authors) == 0 && bestContainer != nil && bestContainer.total() >= 2 {
+		authors = append(authors, bestContainer)
+	}
+
+	// extract authors
+	return extractAuthors(authors)
 }
 
 // cull out authors which contain others
@@ -324,23 +333,21 @@ func cullNestedAuthors(authors candidateList) candidateList {
 	return authors
 }
 
-func extractAuthors(container candidate, authors candidateList) []Author {
+func cullNonContainedAuthors(container candidate, authors candidateList) candidateList {
+	kept := candidateList{}
+	for _, authorC := range authors {
+		if authorC.node() == container.node() || contains(container.node(), authorC.node()) {
+			kept = append(kept, authorC)
+		}
+	}
+	return kept
+}
+
+func extractAuthors(authors candidateList) []Author {
 
 	extracted := make([]Author, 0)
 
-	contained := candidateList{}
 	for _, authorC := range authors {
-		if contains(container.node(), authorC.node()) {
-			contained = append(contained, authorC)
-		}
-	}
-
-	if len(contained) == 0 && container.total() >= 2 {
-		// no contained candidates - use self as candidate
-		contained = append(contained, container)
-	}
-
-	for _, authorC := range contained {
 		for _, a := range byline.Parse(authorC.txt()) {
 			// TODO: extract vcard stuff, email, rel-author etc etc
 			extracted = append(extracted, Author{Name: a.Name, Email: a.Email})
