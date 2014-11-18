@@ -15,6 +15,7 @@ func ExampleParse() {
 		"By SARA KARL. Special to amNewYork April 24, 2014",
 		"By Lucy Hyslop, Special to The Sun",
 		"Daniel Wittenberg for Metro.co.uk",
+		"Author: Dieter Shirley", // http://axioms.io/zen/2014-11-06-swift-go/
 	}
 
 	for _, byl := range bylines {
@@ -33,4 +34,5 @@ func ExampleParse() {
 	// Fred Smith
 	// SARA KARL
 	// Lucy Hyslop
+	// Dieter Shirley
 }
