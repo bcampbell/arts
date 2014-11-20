@@ -3,7 +3,7 @@ package arts
 import (
 	"bytes"
 	"code.google.com/p/cascadia"
-	"code.google.com/p/go.net/html"
+	"golang.org/x/net/html"
 	"mime"
 	"strings"
 	"unicode/utf8"

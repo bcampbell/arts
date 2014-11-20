@@ -4,7 +4,7 @@ package arts
 
 import (
 	"bytes"
-	"code.google.com/p/go.net/html"
+	"golang.org/x/net/html"
 	"errors"
 	"fmt"
 	"io"

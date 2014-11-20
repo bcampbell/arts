@@ -3,7 +3,7 @@ package arts
 // scoring.go contains helpers for rating nodes.
 
 import (
-	"code.google.com/p/go.net/html"
+	"golang.org/x/net/html"
 	"fmt"
 	"log"
 	"sort"

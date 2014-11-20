@@ -5,7 +5,7 @@ package byline
 // name, location, job title, etc...
 
 import (
-	//	"code.google.com/p/go.net/html"
+	//	"golang.org/x/net/html"
 	//	"fmt"
 	"regexp"
 	"strings"

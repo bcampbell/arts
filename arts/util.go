@@ -5,9 +5,9 @@ package arts
 
 import (
 	"code.google.com/p/cascadia"
-	"code.google.com/p/go.net/html"
-	"code.google.com/p/go.net/html/atom"
-	"code.google.com/p/go.text/unicode/norm"
+	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
+	"golang.org/x/text/unicode/norm"
 	"fmt"
 	"net/url"
 	"regexp"
