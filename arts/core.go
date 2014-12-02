@@ -4,9 +4,9 @@ package arts
 
 import (
 	"bytes"
-	"golang.org/x/net/html"
 	"errors"
 	"fmt"
+	"golang.org/x/net/html"
 	"io"
 	"regexp"
 	"strings"
@@ -59,6 +59,16 @@ type Article struct {
 	// Language
 	// Publication
 	// article confidence?
+}
+
+func (art *Article) BestURL() string {
+	if art.CanonicalURL != "" {
+		return art.CanonicalURL
+	}
+	if len(art.URLs) > 0 {
+		return art.URLs[0]
+	}
+	return ""
 }
 
 // TODO:
@@ -190,22 +200,4 @@ func ExtractHTML(raw_html []byte, artUrl string) (*Article, error) {
 	//		dumpTree(n, 0)
 	//	}
 	return art, nil
-}
-
-func grabPublication(root *html.Node, art *Article) Publication {
-	// TODO: check og:site_name and other metadata
-	pub := Publication{}
-
-	// get domain
-	canonical := art.CanonicalURL
-	if canonical == "" {
-		// TODO: better fallback
-		canonical = art.URLs[0]
-	}
-
-	u, err := url.Parse(canonical)
-	if err == nil {
-		pub.Domain = u.Host
-	}
-	return pub
 }
