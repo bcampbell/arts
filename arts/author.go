@@ -1,9 +1,9 @@
 package arts
 
 import (
+	"fmt"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
-	"fmt"
 	//"github.com/matrixik/goquery"
 	"code.google.com/p/cascadia"
 	"github.com/bcampbell/arts/arts/byline"
@@ -190,7 +190,7 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.
 
 	// get the set of elements between headline and content
 	intervening := map[*html.Node]struct{}{}
-	if len(contentNodes) > 0 {
+	if headlineNode != nil && len(contentNodes) > 0 {
 		foo, err := interveningElements(headlineNode, contentNodes[0])
 		if err == nil {
 			for _, bar := range foo {
