@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"github.com/bcampbell/arts/arts"
 	"github.com/bcampbell/warc/warc"
+	"golang.org/x/net/html"
 	"io"
 	"io/ioutil"
 	"log"
@@ -41,7 +42,9 @@ func quote(s string) string {
 
 func main() {
 	var debug string
+	var parseOnly bool
 	flag.StringVar(&debug, "d", "", "log debug info to stderr (h=headline, c=content, a=authors d=dates all=hcad)")
+	flag.BoolVar(&parseOnly, "parse", false, "just dump the parsed html and exit")
 	var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	flag.Parse()
 
@@ -80,58 +83,88 @@ func main() {
 		}
 	}
 
-	// TODO: sort all this mess out!
-	artURL := flag.Arg(0)
-	u, err := url.Parse(artURL)
+	var rawHTML []byte
+	var artURL string
+
+	srcName := flag.Arg(0)
+	u, err := url.Parse(srcName)
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "ERROR: %s is not url: %s", srcName, err)
+		os.Exit(1)
 	}
 
 	var in io.ReadCloser
 	switch strings.ToLower(u.Scheme) {
 	case "http", "https":
-		in, err = openHttp(artURL)
+		artURL = srcName
+		in, err = openHttp(srcName)
 		if err != nil {
-			panic(err)
+			fmt.Fprintf(os.Stderr, "ERROR: http fetch failed: %s", err)
+			os.Exit(1)
+		}
+		rawHTML, err = ioutil.ReadAll(in)
+		in.Close()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: read failed: %s", err)
+			os.Exit(1)
 		}
 	case "file", "":
 
 		foo := strings.ToLower(u.Path)
 		if strings.HasSuffix(foo, ".warc") {
-			art, err := fromWARC(u.Path)
+			// it's a warc file
+			rawHTML, artURL, err = fromWARC(u.Path)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
+				fmt.Fprintf(os.Stderr, "ERROR: warc read failed: %s", err)
 				os.Exit(1)
 			}
-
-			writeYaml(os.Stdout, art)
-			return
+		} else {
+			// treat as plain html file (url will suck)
+			in, err = os.Open(u.Path)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "ERROR: open failed: %s", err)
+				os.Exit(1)
+			}
+			rawHTML, err = ioutil.ReadAll(in)
+			in.Close()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "ERROR: read failed: %s", err)
+				os.Exit(1)
+			}
 		}
+	}
 
-		in, err = os.Open(u.Path)
+	root, err := arts.ParseHTML(rawHTML)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: html parsing failed: %s", err)
+		os.Exit(1)
+	}
+
+	if parseOnly {
+		err = html.Render(os.Stdout, root)
 		if err != nil {
-			panic(err)
+			fmt.Fprintf(os.Stderr, "ERROR: html render failed: %s", err)
+			os.Exit(1)
 		}
+		os.Exit(0)
 	}
 
-	defer in.Close()
-	raw_html, err := ioutil.ReadAll(in)
+	art, err := arts.ExtractFromTree(root, artURL)
 	if err != nil {
-		panic(err)
-	}
-
-	art, err := arts.ExtractHTML(raw_html, artURL)
-	if err != nil {
-		panic(err)
+		//panic(err)
+		fmt.Fprintf(os.Stderr, "ERROR: extraction failed: %s", err)
+		os.Exit(1)
 	}
 
 	writeYaml(os.Stdout, art)
 }
 
-func fromWARC(filename string) (*arts.Article, error) {
+// fetch html from a WARC file
+// returns: html, url, err
+func fromWARC(filename string) ([]byte, string, error) {
 	in, err := os.Open(filename)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer in.Close()
 
@@ -140,7 +173,7 @@ func fromWARC(filename string) (*arts.Article, error) {
 		//	fmt.Printf("WARC\n")
 		rec, err := warcReader.ReadRecord()
 		if err != nil {
-			return nil, fmt.Errorf("Error reading %s: %s", filename, err)
+			return nil, "", fmt.Errorf("Error reading %s: %s", filename, err)
 		}
 		if rec.Header.Get("Warc-Type") != "response" {
 			continue
@@ -150,20 +183,18 @@ func fromWARC(filename string) (*arts.Article, error) {
 		rdr := bufio.NewReader(bytes.NewReader(rec.Block))
 		response, err := http.ReadResponse(rdr, nil)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing response: %s", err)
+			return nil, "", fmt.Errorf("Error parsing response: %s", err)
 		}
 		defer response.Body.Close()
 		if response.StatusCode != 200 {
-			return nil, fmt.Errorf("HTTP error: %d", response.StatusCode)
+			return nil, "", fmt.Errorf("HTTP error: %d", response.StatusCode)
 		}
 		rawHTML, err := ioutil.ReadAll(response.Body)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
-		// TODO: arts should allow parsing in raw response? or header + body?
-		return arts.ExtractHTML(rawHTML, reqURL)
+		return rawHTML, reqURL, err
 	}
-
 }
 
 func openHttp(artURL string) (io.ReadCloser, error) {

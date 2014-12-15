@@ -93,6 +93,7 @@ var Debug = struct {
 	DatesLogger *log.Logger
 }{}
 
+// delete this and leave it up to user?
 func Extract(client *http.Client, srcURL string) (*Article, error) {
 
 	resp, err := client.Get(srcURL)
@@ -110,14 +111,14 @@ func Extract(client *http.Client, srcURL string) (*Article, error) {
 		return nil, err
 	}
 
-	return ExtractHTML(rawHTML, srcURL)
+	return ExtractFromHTML(rawHTML, srcURL)
 
 }
 
-func ExtractHTML(raw_html []byte, artUrl string) (*Article, error) {
-	enc := findCharset("", raw_html)
+func ParseHTML(rawHTML []byte) (*html.Node, error) {
+	enc := findCharset("", rawHTML)
 	var r io.Reader
-	r = strings.NewReader(string(raw_html))
+	r = strings.NewReader(string(rawHTML))
 	if enc != "utf-8" {
 		// we'll be translating to utf-8
 		var err error
@@ -126,12 +127,23 @@ func ExtractHTML(raw_html []byte, artUrl string) (*Article, error) {
 			return nil, err
 		}
 	}
-	art := &Article{}
 
-	root, err := html.Parse(r)
+	return html.Parse(r)
+}
+
+func ExtractFromHTML(rawHTML []byte, artURL string) (*Article, error) {
+
+	root, err := ParseHTML(rawHTML)
 	if err != nil {
 		return nil, err
 	}
+
+	return ExtractFromTree(root, artURL)
+}
+
+func ExtractFromTree(root *html.Node, artURL string) (*Article, error) {
+
+	art := &Article{}
 
 	// fill in any missing loggers to discard
 	if Debug.HeadlineLogger == nil {
@@ -152,21 +164,21 @@ func ExtractHTML(raw_html []byte, artUrl string) (*Article, error) {
 	removeScripts(root)
 	// extract any canonical or alternate urls
 
-	u, err := url.Parse(artUrl)
+	u, err := url.Parse(artURL)
 	if err != nil {
 		return nil, err
 	}
 
 	art.CanonicalURL, art.URLs = grabURLs(root, u)
 	if art.CanonicalURL != "" {
-		artUrl = art.CanonicalURL
+		artURL = art.CanonicalURL
 	}
 
 	art.Publication = grabPublication(root, art)
 
 	art.Keywords = grabKeywords(root)
 
-	headline, headlineNode, err := grabHeadline(root, artUrl)
+	headline, headlineNode, err := grabHeadline(root, artURL)
 	if err == nil {
 		art.Headline = headline
 	}
@@ -174,7 +186,7 @@ func ExtractHTML(raw_html []byte, artUrl string) (*Article, error) {
 	contentNodes, contentScores := grabContent(root)
 	art.Authors = grabAuthors(root, contentNodes, headlineNode)
 
-	published, updated := grabDates(root, artUrl, contentNodes, headlineNode)
+	published, updated := grabDates(root, artURL, contentNodes, headlineNode)
 	if !published.Empty() {
 		art.Published = published.ISOFormat()
 	}

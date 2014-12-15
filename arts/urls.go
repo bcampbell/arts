@@ -5,8 +5,8 @@ package arts
 
 import (
 	"code.google.com/p/cascadia"
-	"golang.org/x/net/html"
 	"github.com/PuerkitoBio/purell"
+	"golang.org/x/net/html"
 	"net/url"
 )
 
@@ -38,7 +38,9 @@ func grabURLs(root *html.Node, baseURL *url.URL) (string, []string) {
 
 	// start with base URL
 	u := purell.NormalizeURL(baseURL, purell.FlagsSafe)
-	all[u] = true
+	if u != "" {
+		all[u] = true
+	}
 
 	// look for canonical urls first
 	for _, link := range urlSels.ogUrl.MatchAll(root) {
