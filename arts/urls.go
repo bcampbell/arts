@@ -15,9 +15,9 @@ var urlSels = struct {
 	ogUrl        cascadia.Selector
 	relShortlink cascadia.Selector
 }{
-	cascadia.MustCompile(`head link[rel="canonical"]`),
-	cascadia.MustCompile(`head meta[property="og:url"]`),
-	cascadia.MustCompile(`head link[rel="shortlink"]`),
+	cascadia.MustCompile(`link[rel="canonical"]`),
+	cascadia.MustCompile(`meta[property="og:url"]`),
+	cascadia.MustCompile(`link[rel="shortlink"]`),
 }
 
 func sanitiseURL(link string, baseURL *url.URL) (string, error) {
