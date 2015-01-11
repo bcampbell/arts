@@ -91,6 +91,9 @@ var Debug = struct {
 	ContentLogger *log.Logger
 	// DatesLogger is where debug output from the pubdate/lastupdated extraction will be sent
 	DatesLogger *log.Logger
+
+	// URLLoggger is where debug output from URL extraction will be sent (rel-canonical etc)
+	URLLogger *log.Logger
 }{}
 
 // delete this and leave it up to user?
@@ -157,6 +160,9 @@ func ExtractFromTree(root *html.Node, artURL string) (*Article, error) {
 	}
 	if Debug.DatesLogger == nil {
 		Debug.DatesLogger = log.New(ioutil.Discard, "", 0)
+	}
+	if Debug.URLLogger == nil {
+		Debug.URLLogger = log.New(ioutil.Discard, "", 0)
 	}
 
 	//	html.Render(dbug, root)

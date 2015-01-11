@@ -43,7 +43,7 @@ func quote(s string) string {
 func main() {
 	var debug string
 	var parseOnly bool
-	flag.StringVar(&debug, "d", "", "log debug info to stderr (h=headline, c=content, a=authors d=dates all=hcad)")
+	flag.StringVar(&debug, "d", "", "log debug info to stderr (h=headline, c=content, a=authors d=dates u=urls all=hcadu)")
 	flag.BoolVar(&parseOnly, "parse", false, "just dump the parsed html and exit")
 	var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	flag.Parse()
@@ -68,7 +68,7 @@ func main() {
 		debug = ""
 	}
 	if debug == "all" {
-		debug = "hcad"
+		debug = "hcadu"
 	}
 	for _, flag := range debug {
 		switch flag {
@@ -80,6 +80,8 @@ func main() {
 			arts.Debug.AuthorsLogger = log.New(os.Stderr, "", 0)
 		case 'd':
 			arts.Debug.DatesLogger = log.New(os.Stderr, "", 0)
+		case 'u':
+			arts.Debug.URLLogger = log.New(os.Stderr, "", 0)
 		}
 	}
 

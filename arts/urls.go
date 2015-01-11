@@ -5,6 +5,7 @@ package arts
 
 import (
 	"code.google.com/p/cascadia"
+	"fmt"
 	"github.com/PuerkitoBio/purell"
 	"golang.org/x/net/html"
 	"net/url"
@@ -26,6 +27,11 @@ func sanitiseURL(link string, baseURL *url.URL) (string, error) {
 		return "", err
 	}
 
+	// we're only interested in articles, so reject obviously-not-article urls
+	if u.Path == "/" || u.Path == "" {
+		return "", fmt.Errorf("obviously not article")
+	}
+
 	return purell.NormalizeURL(u, purell.FlagsSafe), nil
 }
 
@@ -33,42 +39,53 @@ func sanitiseURL(link string, baseURL *url.URL) (string, error) {
 // returns canonical url (or "") and a list of all urls (including baseURL)
 func grabURLs(root *html.Node, baseURL *url.URL) (string, []string) {
 
+	dbug := Debug.URLLogger
+
 	canonical := ""
-	all := make(map[string]bool)
+	all := make(map[string]struct{})
 
 	// start with base URL
 	u := purell.NormalizeURL(baseURL, purell.FlagsSafe)
 	if u != "" {
-		all[u] = true
+		all[u] = struct{}{}
 	}
 
 	// look for canonical urls first
 	for _, link := range urlSels.ogUrl.MatchAll(root) {
-		u, err := sanitiseURL(getAttr(link, "content"), baseURL)
+		txt := getAttr(link, "content")
+		u, err := sanitiseURL(txt, baseURL)
 		if err != nil {
+			dbug.Printf("Reject og:url %s (%s)\n", txt, err)
 			continue
 		}
 
-		all[u] = true
+		dbug.Printf("Accept og:url %s\n", u)
+		all[u] = struct{}{}
 		canonical = u
 	}
 	for _, link := range urlSels.relCanonical.MatchAll(root) {
-		u, err := sanitiseURL(getAttr(link, "href"), baseURL)
+		txt := getAttr(link, "href")
+		u, err := sanitiseURL(txt, baseURL)
 		if err != nil {
+			dbug.Printf("Reject rel-canonical %s (%s)\n", txt, err)
 			continue
 		}
 
-		all[u] = true
+		dbug.Printf("Accept rel-canonical %s\n", u)
+		all[u] = struct{}{}
 		canonical = u
 	}
 
 	// look for other (non-canonical) urls
 	for _, link := range urlSels.relShortlink.MatchAll(root) {
+		txt := getAttr(link, "href")
 		u, err := sanitiseURL(getAttr(link, "href"), baseURL)
 		if err != nil {
+			dbug.Printf("Reject rel-shortlink %s (%s)\n", txt, err)
 			continue
 		}
-		all[u] = true
+		dbug.Printf("Accept rel-shortlink %s\n", u)
+		all[u] = struct{}{}
 	}
 
 	// build up list of alternates
