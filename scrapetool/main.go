@@ -255,6 +255,9 @@ func writeYaml(w io.Writer, art *arts.Article) {
 			}
 		}
 	}
+	if art.Section != "" {
+		fmt.Fprintf(w, "section: %s\n", art.Section)
+	}
 	fmt.Fprintf(w, "---\n")
 	// the text content
 	fmt.Fprint(w, art.Content)

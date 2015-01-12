@@ -54,10 +54,9 @@ type Article struct {
 	Updated     string      `json:"updated,omitempty"`
 	Publication Publication `json:"publication,omitempty"`
 	Keywords    []Keyword   `json:"keywords,omitempty"`
-
+	Section     string      `json:"section,omitempty"`
 	// TODO:
 	// Language
-	// Publication
 	// article confidence?
 }
 
@@ -166,14 +165,15 @@ func ExtractFromTree(root *html.Node, artURL string) (*Article, error) {
 	}
 
 	//	html.Render(dbug, root)
-
-	removeScripts(root)
-	// extract any canonical or alternate urls
-
 	u, err := url.Parse(artURL)
 	if err != nil {
 		return nil, err
 	}
+
+	art.Section = grabSection(root, u)
+
+	removeScripts(root)
+	// extract any canonical or alternate urls
 
 	art.CanonicalURL, art.URLs = grabURLs(root, u)
 	if art.CanonicalURL != "" {
@@ -181,7 +181,6 @@ func ExtractFromTree(root *html.Node, artURL string) (*Article, error) {
 	}
 
 	art.Publication = grabPublication(root, art)
-
 	art.Keywords = grabKeywords(root)
 
 	headline, headlineNode, err := grabHeadline(root, artURL)
