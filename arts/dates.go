@@ -78,6 +78,7 @@ var dateSels = struct {
 	cascadia.MustCompile(`time, .published, .updated`),
 	cascadia.MustCompile(`meta[property="article:published_time"], ` +
 		`meta[name="dashboard_published_date"], ` +
+		`meta[name="publishDate"], ` +
 		`meta[name="DC.date.issued"], ` +
 		`meta[name="DCSext.articleFirstPublished"], ` +
 		`meta[name="DCTERMS.created"]`),
