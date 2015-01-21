@@ -17,7 +17,7 @@ var sectionSels = struct {
 	script    cascadia.Selector
 	ftSectPat *regexp.Regexp
 }{
-	cascadia.MustCompile(`head meta[property="article:section"]`),
+	cascadia.MustCompile(`head meta[property="article:section"], head meta[name="Section"]`),
 	cascadia.MustCompile(`script`),
 	regexp.MustCompile(`siteMapTerm = '(?:.*)[.](.*)';`),
 }
