@@ -5,10 +5,10 @@ package arts
 
 import (
 	"code.google.com/p/cascadia"
+	"fmt"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 	"golang.org/x/text/unicode/norm"
-	"fmt"
 	"net/url"
 	"regexp"
 	"sort"
@@ -288,4 +288,67 @@ func interveningElements(e1, e2 *html.Node) ([]*html.Node, error) {
 		out = append(out, n)
 	}
 	return out, nil
+}
+
+// return a snippet of text, up to n chars
+// adds "..." if truncated
+func snip(s string, n int) string {
+
+	// TODO: fix single-byte rune assumption
+	if len(s) <= n {
+		return s
+	}
+	return s[:n-3] + "..."
+}
+
+// from github.com/bcampbell/htmlutil
+var inlineNodes = map[atom.Atom]struct{}{
+	atom.A:      {},
+	atom.Em:     {},
+	atom.Strong: {},
+	atom.Small:  {},
+	atom.S:      {},
+	atom.Cite:   {},
+	atom.Q:      {},
+	atom.Dfn:    {},
+	atom.Abbr:   {},
+	// atom.Data
+	atom.Time: {},
+	atom.Code: {},
+	atom.Var:  {},
+	atom.Samp: {},
+	atom.Kbd:  {},
+	atom.Sub:  {},
+	atom.Sup:  {},
+	atom.I:    {},
+	atom.B:    {},
+	atom.U:    {},
+	atom.Mark: {},
+	atom.Ruby: {},
+	atom.Rt:   {},
+	atom.Rp:   {},
+	atom.Bdi:  {},
+	atom.Bdo:  {},
+	atom.Span: {},
+	//      atom.Br:   {},
+	atom.Wbr: {},
+	atom.Ins: {},
+	atom.Del: {},
+}
+
+func containsBlockElements(n *html.Node) bool {
+	for child := n.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type != html.ElementNode {
+			continue
+		}
+		_, inline := inlineNodes[child.DataAtom]
+		if !inline {
+			return true
+		}
+		if containsBlockElements(child) {
+			return true
+		}
+	}
+
+	return false
 }

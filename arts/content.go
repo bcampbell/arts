@@ -12,12 +12,13 @@ package arts
 
 import (
 	"code.google.com/p/cascadia"
+	"fmt"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
-	//	"github.com/matrixik/goquery"
+	"log"
 	"math"
 	"regexp"
-	//	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -33,6 +34,19 @@ func (candidates candidateMap) get(n *html.Node) candidate {
 		candidates[n] = c
 	}
 	return c
+}
+
+func (candidates candidateMap) dump(dbug *log.Logger) {
+	// convert to a list so we can sort it
+	l := candidateList{}
+	for _, c := range candidates {
+		l = append(l, c)
+	}
+	l.Sort()
+	// now we can display it
+	for _, c := range l {
+		c.dump(dbug)
+	}
 }
 
 // assign initial scoring to a potential content candidate
@@ -63,11 +77,19 @@ func removeScripts(root *html.Node) {
 	}
 }
 
-var unlikelyCandidates = regexp.MustCompile(`(?i)combx|comment|community|disqus|livefyre|extra|foot|header|menu|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|tweet|twitter`)
-var okMaybeItsACandidate = regexp.MustCompile(`(?i)and|article|body|column|main|shadow`)
-
-var positivePat = regexp.MustCompile(`(?i)article|body|content|entry|hentry|main|page|pagination|post|text|blog|story`)
-var negativePat = regexp.MustCompile(`(?i)combx|comment|com-|contact|foot|footer|footnote|masthead|media|meta|outbrain|promo|related|scroll|shoutbox|sidebar|sponsor|shopping|tags|tool|widget`)
+var contentPats = struct {
+	unlikelyCandidates   *regexp.Regexp
+	okMaybeItsACandidate *regexp.Regexp
+	positivePat          *regexp.Regexp
+	negativePat          *regexp.Regexp
+	itemPropSel          cascadia.Selector
+}{
+	regexp.MustCompile(`(?i)combx|comment|community|disqus|livefyre|extra|foot|header|menu|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|tweet|twitter`),
+	regexp.MustCompile(`(?i)and|article|body|column|main|shadow`),
+	regexp.MustCompile(`(?i)article|body|content|entry|hentry|main|page|pagination|post|text|blog|story`),
+	regexp.MustCompile(`(?i)combx|comment|com-|contact|foot|footer|footnote|masthead|media|meta|outbrain|promo|related|scroll|shoutbox|sidebar|sponsor|shopping|tags|tool|widget`),
+	cascadia.MustCompile(`[itemprop="articleBody"]`),
+}
 
 // grabContent finds the nodes in the page which contain the actual article text.
 // Returns a slice of node pointers (in order), and a map containing all
@@ -95,8 +117,8 @@ func grabContent(root *html.Node) ([]*html.Node, candidateMap) {
 			unlikelyMatchString := getAttr(node, "class") + getAttr(node, "id")
 
 			// TODO: this lets through things it shouldn't, eg ".dsq-comment-body"
-			if unlikelyCandidates.MatchString(unlikelyMatchString) == true &&
-				okMaybeItsACandidate.MatchString(unlikelyMatchString) == false &&
+			if contentPats.unlikelyCandidates.MatchString(unlikelyMatchString) == true &&
+				contentPats.okMaybeItsACandidate.MatchString(unlikelyMatchString) == false &&
 				node.DataAtom != atom.Body {
 				dbug.Printf("Removing unlikely candidate - %s\n", describeNode(node))
 				node.Parent.RemoveChild(node)
@@ -106,10 +128,16 @@ func grabContent(root *html.Node) ([]*html.Node, candidateMap) {
 
 		if node.DataAtom == atom.P || node.DataAtom == atom.Td || node.DataAtom == atom.Pre {
 			nodesToScore = append(nodesToScore, node)
+		} else if node.DataAtom == atom.Div {
+			// accept divs which contain no block elements
+			// concrete example: http://www.theatlantic.com/national/archive/2013/04/the-boston-marathon-bombing-keep-calm-and-carry-on/275014/
+			// all paras are divs.
+			dbug.Printf("consider div: %s\n", describeNode(node))
+			if !containsBlockElements(node) {
+				dbug.Printf(" promote div: %s\n", describeNode(node))
+				nodesToScore = append(nodesToScore, node)
+			}
 		}
-		/* XYZZY TODO: Turn all divs that don't have children block level elements into p's */
-		// concrete example: http://www.theatlantic.com/national/archive/2013/04/the-boston-marathon-bombing-keep-calm-and-carry-on/275014/
-		// all paras are divs.
 	}
 
 	dbug.Printf("%d nodes to score\n", len(nodesToScore))
@@ -157,11 +185,11 @@ func grabContent(root *html.Node) ([]*html.Node, candidateMap) {
 		contentScore += foo
 
 		/* Add the content score to the parent. The grandparent gets half. */
-		candidates.get(parentNode).addPoints(contentScore, "Child content")
+		candidates.get(parentNode).addPoints(contentScore, fmt.Sprintf("Child content %s %s", describeNode(node), strconv.Quote(snip(innerText, 12))))
 		if grandParentNode != nil {
 			halfScore := contentScore / 2
 			if halfScore > 0 {
-				candidates.get(grandParentNode).addPoints(halfScore, "Child content")
+				candidates.get(grandParentNode).addPoints(halfScore, fmt.Sprintf("Grandchild content %s %s", describeNode(node), strconv.Quote(snip(innerText, 12))))
 			}
 		}
 	}
@@ -178,7 +206,7 @@ func grabContent(root *html.Node) ([]*html.Node, candidateMap) {
 	 * relatively small link density (5% or less) and be mostly unaffected by this operation.
 	 **/
 	for _, c := range candidates {
-		c.scalePoints((1 - getLinkDensity(c.node())), "link density")
+		c.scalePoints((1 - getLinkDensity(c.node())), "1-link density")
 	}
 
 	/**
@@ -193,10 +221,7 @@ func grabContent(root *html.Node) ([]*html.Node, candidateMap) {
 	}
 
 	dbug.Printf(" %d candidates:\n", len(candidates))
-	for _, c := range candidates {
-		dbug.Printf("  %f: %s\n", c.total(), describeNode(c.node()))
-		c.dump(dbug)
-	}
+	candidates.dump(dbug)
 	//html.Render(os.Stdout, topCandidate.node())
 
 	/**
@@ -268,20 +293,24 @@ func getClassWeight(n *html.Node) float64 {
 	id := getAttr(n, "id")
 
 	/* Look for a special classname */
-	if negativePat.MatchString(cls) {
+	if contentPats.negativePat.MatchString(cls) {
 		score -= 25
 	}
-	if positivePat.MatchString(cls) {
+	if contentPats.positivePat.MatchString(cls) {
 		score += 25
 	}
 	/* Look for a special ID */
-	if negativePat.MatchString(id) {
+	if contentPats.negativePat.MatchString(id) {
 		score -= 25
 	}
-	if positivePat.MatchString(id) {
+	if contentPats.positivePat.MatchString(id) {
 		score += 25
 	}
 
+	// heavy bonus to schema.org markup
+	if contentPats.itemPropSel.Match(n) {
+		score += 100
+	}
 	return score
 }
 

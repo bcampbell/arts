@@ -150,8 +150,8 @@ var walkHTML string = `<html>
 </html>
 `
 
-func getWalkDoc() *html.Node {
-	doc, err := html.Parse(strings.NewReader(walkHTML))
+func parseDoc(src string) *html.Node {
+	doc, err := html.Parse(strings.NewReader(src))
 	if err != nil {
 		panic(err)
 	}
@@ -170,7 +170,7 @@ func TestNextElement(t *testing.T) {
 		{"#d", "#e"},
 	}
 
-	doc := getWalkDoc()
+	doc := parseDoc(walkHTML)
 
 	for _, dat := range cases {
 		e := cascadia.MustCompile(dat.start).MatchFirst(doc)
@@ -196,7 +196,7 @@ func TestInterveningElements(t *testing.T) {
 		{"html", "body", []string{"head"}},
 	}
 
-	doc := getWalkDoc()
+	doc := parseDoc(walkHTML)
 
 	for _, dat := range cases {
 		e1 := cascadia.MustCompile(dat.e1Sel).MatchFirst(doc)
