@@ -2,10 +2,10 @@ package arts
 
 import (
 	"code.google.com/p/cascadia"
-	"golang.org/x/net/html"
-	"golang.org/x/net/html/atom"
 	"errors"
 	"fmt"
+	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 	"regexp"
 	"sort"
 	"strings"
@@ -16,19 +16,21 @@ var headlinePats = struct {
 	titleSel            cascadia.Selector
 	metaTitlesSel       cascadia.Selector // meta tags which have title
 	itemPropHeadlineSel cascadia.Selector
+	indicativePat       *regexp.Regexp
+	unIndicativePat     *regexp.Regexp
 }{
 	cascadia.MustCompile("h1,h2,h3,h4,h5,h6,div,span,th,td"),
 	cascadia.MustCompile("title"),
 	cascadia.MustCompile(`meta[property="og:title"], meta[name="wp_twitter-title"]`),
 	cascadia.MustCompile(`[itemprop="headline"]`),
+	regexp.MustCompile(`(?i)entry-title|headline|title`),
+	regexp.MustCompile(`(?i)feed-title`),
 }
 
 func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 	dbug := Debug.HeadlineLogger
 
 	var candidates = make(candidateList, 0, 100)
-
-	indicative := regexp.MustCompile(`(?i)entry-title|headline|title`)
 
 	cookedSlug := toAlphanumeric(regexp.MustCompile("[-_]+").ReplaceAllLiteralString(getSlug(art_url), " "))
 	dbug.Printf("slug: '%s'\n", cookedSlug)
@@ -87,15 +89,21 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 
 		// TEST: likely-looking class or id?
 		cls := getAttr(el, "class")
-		if cls != "" && (indicative.FindStringIndex(cls) != nil) {
+		id := getAttr(el, "id")
+		if cls != "" && (headlinePats.indicativePat.FindStringIndex(cls) != nil) {
 			c.addPoints(2, "indicative class")
 		}
-
-		id := getAttr(el, "id")
-		if id != "" && (indicative.FindStringIndex(id) != nil) {
+		if id != "" && (headlinePats.indicativePat.FindStringIndex(id) != nil) {
 			c.addPoints(2, "indicative id")
 		}
 
+		// TEST: unlikely-looking class or id?
+		if cls != "" && (headlinePats.unIndicativePat.FindStringIndex(cls) != nil) {
+			c.addPoints(-1, "unindicative class")
+		}
+		if id != "" && (headlinePats.unIndicativePat.FindStringIndex(id) != nil) {
+			c.addPoints(-1, "unindicative id")
+		}
 		if len(cookedTxt) > 0 {
 			// TEST: beginning of <title>?
 			if strings.HasPrefix(cookedTitle, cookedTxt) {
