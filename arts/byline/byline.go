@@ -123,17 +123,6 @@ func classify(txt string) kind {
 	return kindName
 }
 
-//bylineSplitPat = regexp.MustCompile(r`(?i)((?:\b(?:and|with|in)\b)|(?:[^-_.\w\s]+))`)
-//   'indicative': re.compile(r'\s*\b(by|text by|posted by|written by|exclusive by|reviewed by|published by|photographs by|von)\b[:]?\s*',re.I)
-/*
-# n=name
-# l=location
-# t=jobtitle
-# a=agency
-# s=subject (eg "editor's briefing", "cricket")
-# e=email address
-*/
-
 type Author struct {
 	Name, Location, JobTitle, Email string
 }
@@ -142,6 +131,8 @@ type Author struct {
 var bylineSplitPat = regexp.MustCompile(`(?i)\s*(?:,|(?:\b(?:by|text by|posted by|written by|exclusive by|reviewed by|published by|photographs by|and|by|in|for|special to|special for)\b))\s*`)
 var fullStopPat = regexp.MustCompile(`[.]$`)
 
+// Parse attempts to parse a byline into distinct authors,
+// each with name/jobtitle/location/email etc...
 func Parse(txt string) []Author {
 	out := []Author{}
 	cur := Author{}
