@@ -172,9 +172,10 @@ func ExtractFromTree(root *html.Node, artURL string) (*Article, error) {
 
 	art.Section = grabSection(root, u)
 
-	removeScripts(root)
-	// extract any canonical or alternate urls
+	// TODO: do we really need to do this?
+	scriptNodes := removeScripts(root)
 
+	// extract any canonical or alternate urls
 	art.CanonicalURL, art.URLs = grabURLs(root, u)
 	if art.CanonicalURL != "" {
 		artURL = art.CanonicalURL
@@ -191,7 +192,7 @@ func ExtractFromTree(root *html.Node, artURL string) (*Article, error) {
 	contentNodes, contentScores := grabContent(root)
 	art.Authors = grabAuthors(root, contentNodes, headlineNode)
 
-	published, updated := grabDates(root, artURL, contentNodes, headlineNode)
+	published, updated := grabDates(root, u, contentNodes, headlineNode, scriptNodes)
 	if !published.Empty() {
 		art.Published = published.ISOFormat()
 	}

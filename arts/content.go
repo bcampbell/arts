@@ -70,11 +70,14 @@ func initializeNode(c candidate) {
 }
 
 // remove all <script> elements
-func removeScripts(root *html.Node) {
+func removeScripts(root *html.Node) []*html.Node {
+	out := []*html.Node{}
 	sel := cascadia.MustCompile("script")
 	for _, script := range sel.MatchAll(root) {
 		script.Parent.RemoveChild(script)
+		out = append(out, script)
 	}
+	return out
 }
 
 var contentPats = struct {

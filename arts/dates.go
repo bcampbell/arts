@@ -10,6 +10,7 @@ import (
 	//	"errors"
 	"fmt"
 	"github.com/bcampbell/fuzzytime"
+	"net/url"
 	"sort"
 	"strconv"
 )
@@ -122,10 +123,10 @@ var datePats = struct {
 }
 
 // dateFromURL looks for an obvious date in the url
-func dateFromURL(artURL string) fuzzytime.Date {
+func dateFromURL(artURL *url.URL) fuzzytime.Date {
 
 	for _, pat := range datePats.urlDateFmts {
-		m := pat.FindStringSubmatch(artURL)
+		m := pat.FindStringSubmatch(artURL.String())
 		if len(m) < 3 {
 			continue
 		}
@@ -207,7 +208,7 @@ func datesFromMeta(root *html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
 //
 //
 //
-func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headlineNode *html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
+func grabDates(root *html.Node, artURL *url.URL, contentNodes []*html.Node, headlineNode *html.Node, scriptNodes []*html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
 	dbug := Debug.DatesLogger
 	var publishedCandidates = make(dateCandidateList, 0, 32)
 	var updatedCandidates = make(dateCandidateList, 0, 32)
@@ -222,6 +223,7 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headli
 		return metaPublished, metaUpdated
 	}
 
+	evilPublished := checkEvilSpecialCaseHacks(artURL, scriptNodes)
 	// get a list of elements between headline and content
 	betwixt := []*html.Node{}
 	if headlineNode != nil && len(contentNodes) > 0 {
@@ -400,9 +402,12 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headli
 
 	}
 
-	dbug.Printf("date from url: '%s\n", urlDate.String())
-	dbug.Printf("meta updated: '%s\n", metaUpdated.String())
-	dbug.Printf("meta published: '%s\n", metaPublished.String())
+	dbug.Printf("date from url: %s\n", urlDate.String())
+	dbug.Printf("meta updated: %s\n", metaUpdated.String())
+	dbug.Printf("meta published: %s\n", metaPublished.String())
+	if !evilPublished.Empty() {
+		dbug.Printf("evilspecialcase published: '%s'\n", evilPublished.String())
+	}
 
 	publishedCandidates.Sort()
 	dbug.Printf("PUBLISHED: %d candidates\n", len(publishedCandidates))
@@ -430,6 +435,8 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headli
 			published = metaPublished
 		} else if !urlDate.Empty() {
 			published = fuzzytime.DateTime{Date: urlDate}
+		} else if !evilPublished.Empty() {
+			published = evilPublished
 		}
 	}
 
@@ -449,4 +456,31 @@ func grabDates(root *html.Node, artURL string, contentNodes []*html.Node, headli
 	}
 
 	return published, updated
+}
+
+// EVIL SPECIALCASE HACK ALERT
+func checkEvilSpecialCaseHacks(artURL *url.URL, scriptNodes []*html.Node) fuzzytime.DateTime {
+	published := fuzzytime.DateTime{}
+
+	if artURL.Host == "www.buzzfeed.com" {
+		dbug := Debug.DatesLogger
+		// get it from javascript
+		// var buzzDetails = {..., published: "2015-02-17 17:57:12", ...};
+
+		dbug.Printf("specialcase buzzfeeed check")
+
+		bfPat := regexp.MustCompile(`published:\s+"(.*?)"`)
+
+		for _, el := range scriptNodes {
+			txt := getTextContent(el)
+			dbug.Printf("----\n%s\n----", txt)
+			m := bfPat.FindStringSubmatch(txt)
+			if m != nil {
+				published, _, _ = fuzzytime.Extract(m[1])
+				break
+			}
+		}
+	}
+
+	return published
 }
