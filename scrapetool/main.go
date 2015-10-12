@@ -25,21 +25,6 @@ import (
 	"strings"
 )
 
-// quote a string for yaml output
-func quote(s string) string {
-	if strings.ContainsAny(s, `:|`) {
-		if !strings.Contains(s, `"`) {
-			return fmt.Sprintf(`"%s"`, s)
-		} else {
-			if strings.Contains(s, "'") {
-				s = strings.Replace(s, "'", "''", -1)
-			}
-			return fmt.Sprintf(`'%s'`, s)
-		}
-	}
-	return s
-}
-
 func main() {
 	var debug string
 	var parseOnly bool
@@ -153,12 +138,15 @@ func main() {
 
 	art, err := arts.ExtractFromTree(root, artURL)
 	if err != nil {
-		//panic(err)
 		fmt.Fprintf(os.Stderr, "ERROR: extraction failed: %s", err)
 		os.Exit(1)
 	}
 
-	writeYaml(os.Stdout, art)
+	err = dumpArt(os.Stdout, art)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: dumping article to stdout: %s", err)
+		os.Exit(1)
+	}
 }
 
 // fetch html from a WARC file
@@ -216,49 +204,4 @@ func openHttp(artURL string) (io.ReadCloser, error) {
 		return nil, errors.New(fmt.Sprintf("Request failed: %s", response.Status))
 	}
 	return response.Body, nil
-}
-
-// The plan is to store a big set of example articles in this format:
-// YAML front matter (like in jekyll), with headline, authors etc...
-// The rest of the file has the expected article text.
-// TODO: use a proper YAML encoder, dammit!
-func writeYaml(w io.Writer, art *arts.Article) {
-	// yaml front matter
-	fmt.Fprintf(w, "---\n")
-	fmt.Fprintf(w, "urls:\n")
-	for _, url := range art.URLs {
-		fmt.Fprintf(w, "  - %s\n", quote(url))
-	}
-	fmt.Fprintf(w, "canonical_url: %s\n", quote(art.CanonicalURL))
-	fmt.Fprintf(w, "headline: %s\n", quote(art.Headline))
-	if len(art.Authors) > 0 {
-		fmt.Fprintf(w, "authors:\n")
-		for _, author := range art.Authors {
-			fmt.Fprintf(w, "  - name: %s\n", quote(author.Name))
-		}
-	}
-	if art.Published != "" {
-		fmt.Fprintf(w, "published: %s\n", art.Published)
-	}
-	if art.Updated != "" {
-		fmt.Fprintf(w, "updated: %s\n", art.Updated)
-	}
-	fmt.Fprintf(w, "publication:\n")
-	fmt.Fprintf(w, "  name: %s\n", quote(art.Publication.Name))
-	fmt.Fprintf(w, "  domain: %s\n", quote(art.Publication.Domain))
-	if len(art.Keywords) > 0 {
-		fmt.Fprintf(w, "keywords:\n")
-		for _, kw := range art.Keywords {
-			fmt.Fprintf(w, "  - name: %s\n", quote(kw.Name))
-			if kw.URL != "" {
-				fmt.Fprintf(w, "  - url: %s\n", quote(kw.URL))
-			}
-		}
-	}
-	if art.Section != "" {
-		fmt.Fprintf(w, "section: %s\n", art.Section)
-	}
-	fmt.Fprintf(w, "---\n")
-	// the text content
-	fmt.Fprint(w, art.Content)
 }
