@@ -15,7 +15,7 @@ import (
 var sectionSels = struct {
 	meta cascadia.Selector
 }{
-	cascadia.MustCompile(`head meta[property="article:section"], head meta[name="Section"]`),
+	cascadia.MustCompile(`head meta[property="article:section"], head meta[name="Section"], head meta[property="og:article:section"]`),
 }
 
 // evil special-case hacks for various specific sites
