@@ -3,8 +3,8 @@ package arts
 // scoring.go contains helpers for rating nodes.
 
 import (
-	"golang.org/x/net/html"
 	"fmt"
+	"golang.org/x/net/html"
 	"log"
 	"sort"
 	"strconv"
@@ -37,7 +37,7 @@ type standardCandidate struct {
 	log    []string
 }
 
-func newStandardCandidate(n *html.Node, txt string) candidate {
+func newStandardCandidate(n *html.Node, txt string) *standardCandidate {
 	return &standardCandidate{n, txt, 0, 1, make([]string, 0, 4)}
 }
 

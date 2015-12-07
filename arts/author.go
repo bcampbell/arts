@@ -41,7 +41,7 @@ var bylineContainerPats = struct {
 	regexp.MustCompile(`(?i)\b(?:combx|comment|community|disqus|livefyre|menu|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|promo|sponsor|shopping|tweet|twitter|facebook)\b`),
 }
 
-func rateBylineContainerNode(c candidate) {
+func rateBylineContainerNode(c candidate, cruftBlocks []*html.Node) {
 	el := c.node()
 
 	// TEST: inside likely cruft? (sidebars, related-articles boxes etc)
@@ -54,15 +54,24 @@ func rateBylineContainerNode(c candidate) {
 	*/
 
 	elClass := getAttr(el, "class")
-	elId := getAttr(el, "id")
+	elID := getAttr(el, "id")
 
 	// TEST: is cruft itself?
-	if bylineContainerPats.cruftIndicative.MatchString(getAttr(el, "class")) || bylineContainerPats.cruftIndicative.MatchString(getAttr(el, "id")) {
-		c.addPoints(-3, fmt.Sprintf("looks like cruft"))
+	// (TODO: move the indicative stuff out into cruft.go)
+	if bylineContainerPats.cruftIndicative.MatchString(elClass) || bylineContainerPats.cruftIndicative.MatchString(elID) {
+		c.addPoints(-3, "looks like cruft")
+	}
+	for _, blk := range cruftBlocks {
+		if c.node() == blk {
+			c.addPoints(-3, "looks like cruft")
+		}
+		if contains(blk, c.node()) {
+			c.addPoints(-3, "inside a cruft block")
+		}
 	}
 
 	// TEST: is it a standfirst?
-	if bylineContainerPats.standfirstPat.MatchString(elClass + " " + elId) {
+	if bylineContainerPats.standfirstPat.MatchString(elClass + " " + elID) {
 		c.addPoints(-3, fmt.Sprintf("looks like standfirst"))
 	}
 
@@ -70,7 +79,7 @@ func rateBylineContainerNode(c candidate) {
 	if bylineContainerPats.likelyClassPat.MatchString(elClass) {
 		c.addPoints(1, "indicative class")
 	}
-	if bylineContainerPats.likelyClassPat.MatchString(elId) {
+	if bylineContainerPats.likelyClassPat.MatchString(elID) {
 		c.addPoints(1, "indicative id")
 	}
 
@@ -86,7 +95,7 @@ func rateBylineContainerNode(c candidate) {
 }
 
 // rate node on how much it looks like an individual author
-func rateAuthorNode(c candidate, contentNodes []*html.Node) {
+func rateAuthorNode(c candidate, contentNodes []*html.Node, cruftBlocks []*html.Node) {
 	el := c.node()
 
 	// TODO: handle updated uFormats: http://www.microformats.org/wiki/h-entry
@@ -165,6 +174,13 @@ func rateAuthorNode(c candidate, contentNodes []*html.Node) {
 		}
 	}
 
+	// TEST: penalise if inside social/sharing block
+	for _, soc := range cruftBlocks {
+		if contains(soc, el) {
+			c.addPoints(-1, "inside social/share block")
+		}
+	}
+
 	// TEST: inside content, but not at immediate top or bottom
 	//	if getLinkDensity(el.Parent) < 0.75 {
 	//		c.addPoints(-2, "in block of text")
@@ -186,6 +202,8 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.
 	var authors = candidateList{}
 	var bylines = candidateList{}
 
+	cruftBlocks := findCruft(root, dbug)
+
 	likelyElementSel := cascadia.MustCompile("a,p,span,div,li,h3,h4,h5,h6,td,strong")
 
 	// get the set of elements between headline and content
@@ -203,10 +221,14 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.
 	//  - elements containing individual authors
 	//  - elements that look like byline containers
 	for _, el := range likelyElementSel.MatchAll(root) {
-		earlyOut := false
 		txt := compressSpace(getTextContent(el))
+		authorC := newStandardCandidate(el, txt)
+		containerC := newStandardCandidate(el, txt)
+
+		earlyOut := false
 		if len(txt) >= 150 {
-			earlyOut = true
+			//earlyOut = true
+			authorC.addPoints(-3, "very verbose")
 		} else if len(txt) < 3 {
 			earlyOut = true
 		} else {
@@ -225,22 +247,20 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.
 			continue
 		}
 
-		authorC := newStandardCandidate(el, txt)
-		containerC := newStandardCandidate(el, txt)
 		if _, got := intervening[el]; got {
 			authorC.addPoints(1, "between headline and content")
 			containerC.addPoints(1, "between headline and content")
 		}
 
 		// any good as an author?
-		rateAuthorNode(authorC, contentNodes)
+		rateAuthorNode(authorC, contentNodes, cruftBlocks)
 
 		if authorC.total() > 1 {
 			authors = append(authors, authorC)
 		}
 
 		// any good as a container?
-		rateBylineContainerNode(containerC)
+		rateBylineContainerNode(containerC, cruftBlocks)
 		if containerC.total() > 0 {
 			bylines = append(bylines, containerC)
 		}

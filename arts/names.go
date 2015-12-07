@@ -14,7 +14,7 @@ const fullNamePat = `^` + namePat + `(\s(` + surnamePat + `|([\p{Lu}][.]?))){0,3
 var nameRE = regexp.MustCompile(fullNamePat)
 
 // ad hoc list
-var nameBlacklist = map[string]int{"facebook": 1, "tweet": 1, "widget": 1, "google": 1, "critic": 1, "reporter": 1, "follow": 1, "about": 1, "more": 1, "from": 1, "this": 1, "articles": 1, "crime": 1, "correspondent": 1}
+var nameBlacklist = map[string]int{"facebook": 1, "tweet": 1, "widget": 1, "google": 1, "critic": 1, "reporter": 1, "follow": 1, "about": 1, "more": 1, "from": 1, "this": 1, "articles": 1, "crime": 1, "correspondent": 1, "share": 1}
 
 //\s((([Vv]an|[Vv]an der|[Vv]an de|von)\s)([\p{Lu}][-\p{Ll}]+))?`)
 
