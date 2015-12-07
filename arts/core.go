@@ -21,9 +21,9 @@ import (
 
 type Author struct {
 	Name    string `json:"name"`
-	RelLink string
-	Email   string
-	Twitter string
+	RelLink string `json:"rellink,omitempty"`
+	Email   string `json:"email,omitempty"`
+	Twitter string `json:"twitter,omitempty"`
 }
 
 type Keyword struct {

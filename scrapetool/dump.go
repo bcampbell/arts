@@ -30,9 +30,9 @@ type frontmatterArt struct {
 
 type frontmatterAuthor struct {
 	Name    string `yaml:"name"`
-	RelLink string
-	Email   string
-	Twitter string
+	RelLink string `yaml:"rellink,omitempty"`
+	Email   string `yaml:"email,omitempty"`
+	Twitter string `yaml:"twitter,omitempty"`
 }
 
 type frontmatterKeyword struct {
