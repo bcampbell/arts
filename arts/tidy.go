@@ -132,6 +132,9 @@ func tidyNode(node *html.Node) {
 	var elementSel cascadia.Selector = func(n *html.Node) bool {
 		return n.Type == html.ElementNode
 	}
+	var imgSel cascadia.Selector = func(n *html.Node) bool {
+		return n.Type == html.ElementNode && n.DataAtom == atom.Img
+	}
 
 	// remove all comments
 	for _, n := range commentSel.MatchAll(node) {
@@ -178,5 +181,16 @@ func tidyNode(node *html.Node) {
 			}
 			return false
 		})
+	}
+
+	// special pass for images - strip out ones with huge URIs (eg embedded
+	// 'data:' + base64 encoded images)
+	const maxSrcURI = 1024
+	for _, img := range imgSel.MatchAll(node) {
+		src := getAttr(img, "src")
+		if len(src) > maxSrcURI {
+			img.Parent.RemoveChild(img)
+			continue
+		}
 	}
 }
