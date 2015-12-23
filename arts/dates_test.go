@@ -1,6 +1,7 @@
 package arts
 
 import (
+	"net/url"
 	"testing"
 )
 
@@ -17,7 +18,11 @@ func TestDateFromURL(t *testing.T) {
 	// go for it.
 	for _, dat := range testData {
 
-		dt := dateFromURL(dat.url)
+		u, err := url.Parse(dat.url)
+		if err != nil {
+			t.Errorf(`bad url "%s"`, dat.url)
+		}
+		dt := dateFromURL(u)
 
 		if dt.String() != dat.expect {
 			t.Errorf(`bad date from url (got "%s" expected "%s")`, dt.String(), dat.expect)
