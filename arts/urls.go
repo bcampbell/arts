@@ -28,7 +28,7 @@ func sanitiseURL(link string, baseURL *url.URL) (string, error) {
 	}
 
 	// we're only interested in articles, so reject obviously-not-article urls
-	if u.Path == "/" || u.Path == "" {
+	if (u.Path == "/" || u.Path == "") && len(u.RawQuery) == 0 {
 		return "", fmt.Errorf("obviously not article")
 	}
 

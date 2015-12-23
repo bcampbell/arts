@@ -40,6 +40,12 @@ func TestGrabURLs(t *testing.T) {
 			"http://example.com/fook",
 			[]string{"http://example.com/fook", "http://example.com/fook?fb=1", "http://examp.le/?p=1"},
 		},
+		// reject obvious root urls
+		{`<html><head><link rel="canonical" href="http://example.com" /></head><body></body></html>`,
+			"http://example.com/fook",
+			"",
+			[]string{"http://example.com/fook"},
+		},
 	}
 
 	// go for it.
