@@ -79,6 +79,8 @@ func (art *Article) BestURL() string {
 // - expected location/timezone
 // - expected language
 
+var nullLogger = log.New(ioutil.Discard, "", 0)
+
 // Debug is the global debug control for the scraper. Set up any loggers you want before calling Extract()
 // By default all logging is suppressed.
 var Debug = struct {
@@ -93,7 +95,13 @@ var Debug = struct {
 
 	// URLLoggger is where debug output from URL extraction will be sent (rel-canonical etc)
 	URLLogger *log.Logger
-}{}
+}{
+	nullLogger,
+	nullLogger,
+	nullLogger,
+	nullLogger,
+	nullLogger,
+}
 
 // delete this and leave it up to user?
 func Extract(client *http.Client, srcURL string) (*Article, error) {
@@ -146,23 +154,6 @@ func ExtractFromHTML(rawHTML []byte, artURL string) (*Article, error) {
 func ExtractFromTree(root *html.Node, artURL string) (*Article, error) {
 
 	art := &Article{}
-
-	// fill in any missing loggers to discard
-	if Debug.HeadlineLogger == nil {
-		Debug.HeadlineLogger = log.New(ioutil.Discard, "", 0)
-	}
-	if Debug.AuthorsLogger == nil {
-		Debug.AuthorsLogger = log.New(ioutil.Discard, "", 0)
-	}
-	if Debug.ContentLogger == nil {
-		Debug.ContentLogger = log.New(ioutil.Discard, "", 0)
-	}
-	if Debug.DatesLogger == nil {
-		Debug.DatesLogger = log.New(ioutil.Discard, "", 0)
-	}
-	if Debug.URLLogger == nil {
-		Debug.URLLogger = log.New(ioutil.Discard, "", 0)
-	}
 
 	//	html.Render(dbug, root)
 	u, err := url.Parse(artURL)
