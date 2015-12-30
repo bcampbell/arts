@@ -13,20 +13,23 @@ import (
 	//	"golang.org/x/net/html/atom"
 	"log"
 	"regexp"
+	"strings"
 )
 
 var cruftPats = struct {
 	shareContainerSel       cascadia.Selector
-	shareItemSel            cascadia.Selector
+	linkSel                 cascadia.Selector
 	likelyShareContainerPat *regexp.Regexp
 	likelyShareItemPat      *regexp.Regexp
 	cruftIndicative         *regexp.Regexp
+	shareLinkIndicative     []string
 }{
 	cascadia.MustCompile("ul,div"),
-	cascadia.MustCompile("li"),
-	regexp.MustCompile(`(?i)social|share|sharetools`),
+	cascadia.MustCompile("a"),
+	regexp.MustCompile(`(?i)social|share|sharing|sharetools`),
 	regexp.MustCompile(`(?i)twitter|google|gplus|googleplus|facebook|linkedin|whatsapp`),
-	regexp.MustCompile(`(?i)\b(?:combx|comment|community|departments|disqus|livefyre|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|promo|sponsor|shopping|tweet|twitter|facebook)\b`),
+	regexp.MustCompile(`(?i)\b(?:combx|comment|community|departments|disqus|livefyre|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|promo|rhs|sidebar|sponsor|shopping|tweet|twitter|facebook)\b`),
+	[]string{"plus.google.com", "facebook.com", "twitter.com", "pinterest.com", "linkedin.com", "mailto:", "whatsapp:"},
 }
 
 func findCruft(root *html.Node, dbug *log.Logger) []*html.Node {
@@ -55,19 +58,26 @@ func findCruft(root *html.Node, dbug *log.Logger) []*html.Node {
 	}
 
 	social := findSocialMediaShareBlocks(root, dbug)
-	for _, el := range social {
-		cruft = append(cruft, el)
+	dbug.Printf("social blocks: %d candidates\n", len(social))
+	for _, c := range social {
+		c.dump(dbug)
+	}
+
+	for _, c := range social {
+		cruft = append(cruft, c.node())
 	}
 	return cruft
 }
 
-func findSocialMediaShareBlocks(root *html.Node, dbug *log.Logger) []*html.Node {
+func findSocialMediaShareBlocks(root *html.Node, dbug *log.Logger) candidateList {
 
 	candidates := candidateList{}
-	// look for likely ul or div blocks
+	// look for likely containers
 	for _, el := range cruftPats.shareContainerSel.MatchAll(root) {
 		cls := getAttr(el, "class")
-		if cruftPats.likelyShareContainerPat.MatchString(cls) {
+		id := getAttr(el, "id")
+		if cruftPats.likelyShareContainerPat.MatchString(cls) ||
+			cruftPats.likelyShareContainerPat.MatchString(id) {
 			c := newStandardCandidate(el, "")
 			c.addPoints(1, "likely share container")
 			candidates = append(candidates, c)
@@ -76,45 +86,31 @@ func findSocialMediaShareBlocks(root *html.Node, dbug *log.Logger) []*html.Node 
 
 	for _, c := range candidates {
 		// TEST: contains likely links?
-		for _, el := range cruftPats.shareItemSel.MatchAll(c.node()) {
-			cls := getAttr(el, "class")
-			if cruftPats.likelyShareItemPat.MatchString(cls) {
-				c.addPoints(1, "likely share item")
+		for _, a := range cruftPats.linkSel.MatchAll(c.node()) {
+			href := strings.ToLower(getAttr(a, "href"))
+			for _, frag := range cruftPats.shareLinkIndicative {
+				if strings.Contains(href, frag) {
+					c.addPoints(2, "contains share link")
+					continue
+				}
 			}
 		}
 	}
 
-	culled := candidateList{}
-	for _, c := range candidates {
+	//cull the duds
+	candidates = candidates.Filter(func(c candidate) bool {
+		return c.total() >= 4
+	})
 
-		keep := true
-		// remove outermost container if nested
+	// remove outermost container if nested
+	candidates = candidates.Filter(func(c candidate) bool {
 		for _, c2 := range candidates {
 			if contains(c.node(), c2.node()) {
-				keep = false
+				return false
 			}
 		}
-		//
-		if c.total() < 4 {
-			keep = false
-		}
-
-		if keep {
-			culled = append(culled, c)
-		}
-	}
-	candidates = culled
+		return true
+	})
 	candidates.Sort()
-
-	dbug.Printf("Social blocks: %d candidates\n", len(candidates))
-	for _, c := range candidates {
-		c.dump(dbug)
-	}
-
-	socialBlocks := []*html.Node{}
-	for _, c := range candidates {
-		socialBlocks = append(socialBlocks, c.node())
-	}
-
-	return socialBlocks
+	return candidates
 }

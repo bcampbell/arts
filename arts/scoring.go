@@ -110,6 +110,16 @@ func (s candidateList) Best() candidateList {
 	return best
 }
 
+func (s candidateList) Filter(filt func(candidate) bool) candidateList {
+	out := candidateList{}
+	for _, c := range s {
+		if filt(c) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 // get any candidates within container (including itself)
 func ContainedCandidates(container *html.Node, candidates candidateList) candidateList {
 	kept := candidateList{}

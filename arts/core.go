@@ -167,7 +167,9 @@ func ExtractFromTree(root *html.Node, artURL string) (*Article, error) {
 
 	art.Section = grabSection(root, u)
 
-	// TODO: do we really need to do this?
+	// zap all the scripts, but keep them about as
+	// there can be some info in them (mainly requiring evil special-case
+	// hacks to extract)
 	scriptNodes := removeScripts(root)
 
 	// extract any canonical or alternate urls
@@ -184,8 +186,8 @@ func ExtractFromTree(root *html.Node, artURL string) (*Article, error) {
 		art.Headline = headline
 	}
 
-	contentNodes, contentScores := grabContent(root)
 	cruftBlocks := findCruft(root, Debug.CruftLogger)
+	contentNodes, contentScores := grabContent(root)
 	art.Authors = grabAuthors(root, contentNodes, headlineNode, cruftBlocks)
 
 	published, updated := grabDates(root, u, contentNodes, headlineNode, scriptNodes, cruftBlocks)
@@ -197,6 +199,11 @@ func ExtractFromTree(root *html.Node, artURL string) (*Article, error) {
 	}
 
 	// TODO: Turn all double br's into p's? Kill <style> tags? (see prepDocument())
+	for _, cruft := range cruftBlocks {
+		if cruft.Parent != nil {
+			cruft.Parent.RemoveChild(cruft)
+		}
+	}
 	removeCruft(contentNodes, contentScores)
 	sanitiseContent(contentNodes)
 
