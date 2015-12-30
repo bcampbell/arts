@@ -168,17 +168,30 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 	}
 
 	if len(candidates) > 0 {
-		return candidates[0].txt(), candidates[0].node(), nil
+		headline := compressSpace(headlineText(candidates[0].node()))
+		return headline, candidates[0].node(), nil
 	}
 	return "", nil, errors.New("couldn't find a headline")
 }
 
-/*
-func insideArticle(s *goquery.Selection) bool {
-	if s.Closest("article, #post, .article, .story-body").Length() > 0 {
-		return true
+// get text for a headline, stripping obviously-wrong elements
+func headlineText(n *html.Node) string {
+	if n.Type == html.TextNode {
+		return n.Data
 	}
 
-	return false
+	// sometimes have timestamps within headline...
+	cls := getAttr(n, "class") + " " + getAttr(n, "id")
+	if datePats.genericClasses.MatchString(cls) ||
+		datePats.publishedClasses.MatchString(cls) ||
+		datePats.updatedClasses.MatchString(cls) {
+		return ""
+	}
+
+	txt := ""
+	for child := n.FirstChild; child != nil; child = child.NextSibling {
+		txt += headlineText(child)
+	}
+
+	return txt
 }
-*/
