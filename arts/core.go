@@ -93,9 +93,13 @@ var Debug = struct {
 	// DatesLogger is where debug output from the pubdate/lastupdated extraction will be sent
 	DatesLogger *log.Logger
 
-	// URLLoggger is where debug output from URL extraction will be sent (rel-canonical etc)
+	// URLLogger is where debug output from URL extraction will be sent (rel-canonical etc)
 	URLLogger *log.Logger
+
+	// CruftLogger is where debug output from cruft classification will be sent (adverts/social/sidebars etc)
+	CruftLogger *log.Logger
 }{
+	nullLogger,
 	nullLogger,
 	nullLogger,
 	nullLogger,
@@ -181,9 +185,10 @@ func ExtractFromTree(root *html.Node, artURL string) (*Article, error) {
 	}
 
 	contentNodes, contentScores := grabContent(root)
-	art.Authors = grabAuthors(root, contentNodes, headlineNode)
+	cruftBlocks := findCruft(root, Debug.CruftLogger)
+	art.Authors = grabAuthors(root, contentNodes, headlineNode, cruftBlocks)
 
-	published, updated := grabDates(root, u, contentNodes, headlineNode, scriptNodes)
+	published, updated := grabDates(root, u, contentNodes, headlineNode, scriptNodes, cruftBlocks)
 	if !published.Empty() {
 		art.Published = published.ISOFormat()
 	}

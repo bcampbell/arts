@@ -36,9 +36,9 @@ func (s dateCandidateList) Sort() {
 	sort.Sort(Reverse{s})
 }
 
-// Best returns the best candidate. Returns an error if there are
+// TopDate returns the best candidate. Returns an error if there are
 // multiple candidates in the top spot which are in conflict.
-func (s dateCandidateList) Best() (*dateCandidate, error) {
+func (s dateCandidateList) TopDate() (*dateCandidate, error) {
 	if len(s) == 0 {
 		return nil, fmt.Errorf("No candidates")
 	}
@@ -105,7 +105,7 @@ var datePats = struct {
 	updatedClasses          *regexp.Regexp
 }{
 	// publishedIndicativeText
-	regexp.MustCompile(`(?i)published|posted`),
+	regexp.MustCompile(`(?i)published|posted|created`),
 	// updatedIndicativeText
 	regexp.MustCompile(`(?i)updated|last modified`),
 	// urlDateFmts
@@ -208,7 +208,9 @@ func datesFromMeta(root *html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
 //
 //
 //
-func grabDates(root *html.Node, artURL *url.URL, contentNodes []*html.Node, headlineNode *html.Node, scriptNodes []*html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
+func grabDates(root *html.Node, artURL *url.URL,
+	contentNodes []*html.Node, headlineNode *html.Node, scriptNodes []*html.Node,
+	cruftBlocks []*html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
 	dbug := Debug.DatesLogger
 	var publishedCandidates = make(dateCandidateList, 0, 32)
 	var updatedCandidates = make(dateCandidateList, 0, 32)
@@ -363,6 +365,15 @@ func grabDates(root *html.Node, artURL *url.URL, contentNodes []*html.Node, head
 			}
 		}
 
+		// TEST: within a crfut block? (comment, social link, whatever)
+		for _, cruftBlock := range cruftBlocks {
+			if contains(cruftBlock, node) {
+				desc := fmt.Sprintf("inside cruft (%s)", describeNode(cruftBlock))
+				publishedC.addPoints(-3, desc)
+				updatedC.addPoints(-3, desc)
+			}
+		}
+
 		// TODO: TEST: agrees with <meta> tag values?
 
 		// TEST: between headline and content?
@@ -424,7 +435,7 @@ func grabDates(root *html.Node, artURL *url.URL, contentNodes []*html.Node, head
 	var published, updated fuzzytime.DateTime
 
 	// pick best candidate for published
-	if best, err := publishedCandidates.Best(); err == nil {
+	if best, err := publishedCandidates.TopDate(); err == nil {
 		published = best.dt
 	} else {
 		dbug.Printf("published: Didn't pick any (%s)", err)
@@ -444,7 +455,7 @@ func grabDates(root *html.Node, artURL *url.URL, contentNodes []*html.Node, head
 	if metaUpdated.HasFullDate() {
 		updated = metaUpdated
 	} else {
-		if best, err := updatedCandidates.Best(); err == nil {
+		if best, err := updatedCandidates.TopDate(); err == nil {
 			updated = best.dt
 			// if time only, use date from published
 			if updated.Date.Empty() && !updated.Time.Empty() {

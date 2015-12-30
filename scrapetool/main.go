@@ -28,7 +28,7 @@ import (
 func main() {
 	var debug string
 	var parseOnly bool
-	flag.StringVar(&debug, "d", "", "log debug info to stderr (h=headline, c=content, a=authors d=dates u=urls all=hcadu)")
+	flag.StringVar(&debug, "d", "", "log debug info to stderr (h=headline, c=content, a=authors d=dates u=urls s=cruft all=hcadus)")
 	flag.BoolVar(&parseOnly, "parse", false, "just dump the parsed html and exit")
 	var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	flag.Parse()
@@ -53,7 +53,7 @@ func main() {
 		debug = ""
 	}
 	if debug == "all" {
-		debug = "hcadu"
+		debug = "hcadus"
 	}
 	for _, flag := range debug {
 		switch flag {
@@ -67,6 +67,8 @@ func main() {
 			arts.Debug.DatesLogger = log.New(os.Stderr, "", 0)
 		case 'u':
 			arts.Debug.URLLogger = log.New(os.Stderr, "", 0)
+		case 's':
+			arts.Debug.CruftLogger = log.New(os.Stderr, "", 0)
 		}
 	}
 

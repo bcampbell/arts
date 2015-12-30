@@ -89,3 +89,34 @@ func (s candidateList) buildMap() map[*html.Node]candidate {
 	}
 	return out
 }
+
+// Best returns the best candidate of a sorted list.
+// Returns an error if there are
+// multiple candidates in the top spot which are in conflict.
+func (s candidateList) Best() candidateList {
+	best := candidateList{}
+	if len(s) > 0 {
+		// collect the top (identically-scoring) candidates
+		best = append(best, s[0])
+		score := s[0].total()
+		for i := 1; i < len(s); i++ {
+			if s[i].total() != score {
+				break
+			}
+			best = append(best, s[i])
+		}
+
+	}
+	return best
+}
+
+// get any candidates within container (including itself)
+func ContainedCandidates(container *html.Node, candidates candidateList) candidateList {
+	kept := candidateList{}
+	for _, c := range candidates {
+		if c.node() == container || contains(container, c.node()) {
+			kept = append(kept, c)
+		}
+	}
+	return kept
+}

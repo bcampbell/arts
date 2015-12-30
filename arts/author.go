@@ -8,6 +8,7 @@ import (
 	"code.google.com/p/cascadia"
 	"github.com/bcampbell/arts/arts/byline"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -197,12 +198,10 @@ func rateAuthorNode(c candidate, contentNodes []*html.Node, cruftBlocks []*html.
 // - use <meta> tags to rate names
 //   eg <meta name="DCSext.author" content="Martin Evans" />
 // - stopwords for not-a-name list ("correspondant" etc)
-func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.Node) []Author {
+func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.Node, cruftBlocks []*html.Node) []Author {
 	dbug := Debug.AuthorsLogger
 	var authors = candidateList{}
 	var bylines = candidateList{}
-
-	cruftBlocks := findCruft(root, dbug)
 
 	likelyElementSel := cascadia.MustCompile("a,p,span,div,li,h3,h4,h5,h6,td,strong")
 
@@ -313,25 +312,34 @@ func grabAuthors(root *html.Node, contentNodes []*html.Node, headlineNode *html.
 		c.dump(dbug)
 	}
 
-	// if there's a 'best' byline container, then discard any authors outside that
-	var bestContainer candidate
-	if len(bylines) > 0 {
-		bestContainer = bylines[0]
-		// TODO:
-		// if multiple top-scorers, check they agree.
-		// if not, abort.
-		authors = cullNonContainedAuthors(bestContainer, authors)
-	} else {
-		authors = candidateList{}
+	// pick the top-scoring byline container(s)
+	// if more than one with identical top score, make sure they agree on authors
+	// else abort.
+
+	bylines = bylines.Best()
+	if len(bylines) < 1 {
+		// TODO: maybe pick a bare author here?
+		return []Author{}
 	}
 
-	// if a container, but no authors, use the container as the author
-	if len(authors) == 0 && bestContainer != nil && bestContainer.total() >= 2 {
-		authors = append(authors, bestContainer)
+	out := extractAuthors(ContainedCandidates(bylines[0].node(), authors))
+
+	// if there is more than one top byline container, make sure they all agree!
+	for i := 1; i < len(bylines); i++ {
+		other := extractAuthors(ContainedCandidates(bylines[i].node(), authors))
+		if !authorListsMatch(out, other) {
+			dbug.Printf("Conflicting byline candidates - not picking any\n")
+			return []Author{}
+		}
 	}
 
-	// extract authors
-	return extractAuthors(authors)
+	// if no authors, use the best container as the author if it's good enough
+	if len(out) == 0 && len(bylines) == 1 && bylines[0].total() >= 2 {
+		dbug.Printf("No authors - trying container\n")
+		out = extractAuthors(candidateList{bylines[0]})
+	}
+
+	return out
 }
 
 // cull out authors which contain others
@@ -353,19 +361,9 @@ func cullNestedAuthors(authors candidateList) candidateList {
 	return authors
 }
 
-func cullNonContainedAuthors(container candidate, authors candidateList) candidateList {
-	kept := candidateList{}
-	for _, authorC := range authors {
-		if authorC.node() == container.node() || contains(container.node(), authorC.node()) {
-			kept = append(kept, authorC)
-		}
-	}
-	return kept
-}
+func extractAuthors(authors candidateList) authorList {
 
-func extractAuthors(authors candidateList) []Author {
-
-	extracted := make([]Author, 0)
+	extracted := authorList{}
 
 	for _, authorC := range authors {
 		for _, a := range byline.Parse(authorC.txt()) {
@@ -374,4 +372,28 @@ func extractAuthors(authors candidateList) []Author {
 		}
 	}
 	return extracted
+}
+
+type authorList []Author
+
+func (l authorList) Len() int           { return len(l) }
+func (l authorList) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
+func (l authorList) Less(i, j int) bool { return l[i].Name < l[j].Name }
+
+// Sort authors according to name
+func (l authorList) Sort() {
+	sort.Sort(l)
+}
+
+func authorListsMatch(listA, listB []Author) bool {
+	if len(listA) != len(listB) {
+		return false
+	}
+
+	for i := 0; i < len(listA); i++ {
+		if listA[i].Name != listB[i].Name {
+			return false
+		}
+	}
+	return true
 }

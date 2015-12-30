@@ -26,7 +26,7 @@ var cruftPats = struct {
 	cascadia.MustCompile("li"),
 	regexp.MustCompile(`(?i)social|share|sharetools`),
 	regexp.MustCompile(`(?i)twitter|google|gplus|googleplus|facebook|linkedin|whatsapp`),
-	regexp.MustCompile(`(?i)\b(?:combx|comment|community|disqus|livefyre|menu|remark|rss|shoutbox|side|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|promo|sponsor|shopping|tweet|twitter|facebook)\b`),
+	regexp.MustCompile(`(?i)\b(?:combx|comment|community|departments|disqus|livefyre|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|promo|sponsor|shopping|tweet|twitter|facebook)\b`),
 }
 
 func findCruft(root *html.Node, dbug *log.Logger) []*html.Node {
