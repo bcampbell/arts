@@ -77,12 +77,18 @@ var dateSels = struct {
 	rdfaUpdated     cascadia.Selector
 }{
 	cascadia.MustCompile(`time, .published, .updated`),
+
+	// TODO: add CSS4 support to cascadia, to get case-insensitive selectors
+	// https://www.w3.org/TR/selectors4/#attribute-case
 	cascadia.MustCompile(`meta[property="article:published_time"], ` +
 		`meta[name="dashboard_published_date"], ` +
 		`meta[name="publishDate"], ` +
 		`meta[name="DC.date.issued"], ` +
 		`meta[name="DCSext.articleFirstPublished"], ` +
-		`meta[name="DCTERMS.created"]`),
+		`meta[name="DCTERMS.created"], ` +
+		`meta[name="dcterms.created"], ` +
+		`meta[name="DCTERMS.date"], ` +
+		`meta[name="dcterms.date"]`),
 	cascadia.MustCompile(`meta[property="article:modified_time"], ` +
 		`meta[name="DCTERMS.modified"], ` +
 		`meta[name="dashboard_updated_date"], ` +
@@ -184,6 +190,7 @@ func datesFromMeta(root *html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
 
 	for _, node := range dateSels.metaPublished.MatchAll(root) {
 		content := getAttr(node, "content")
+		fmt.Printf("content is '%s'\n", content)
 		metaPublished, _, _ = fuzzytime.Extract(content)
 		if metaPublished.HasFullDate() {
 			break
