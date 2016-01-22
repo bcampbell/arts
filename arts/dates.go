@@ -190,7 +190,6 @@ func datesFromMeta(root *html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
 
 	for _, node := range dateSels.metaPublished.MatchAll(root) {
 		content := getAttr(node, "content")
-		fmt.Printf("content is '%s'\n", content)
 		metaPublished, _, _ = fuzzytime.Extract(content)
 		if metaPublished.HasFullDate() {
 			break
