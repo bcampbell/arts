@@ -90,7 +90,7 @@ var contentPats = struct {
 	regexp.MustCompile(`(?i)combx|comment|community|disqus|livefyre|extra|foot|header|menu|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|tweet|twitter`),
 	regexp.MustCompile(`(?i)and|article|body|column|main|shadow`),
 	regexp.MustCompile(`(?i)article|body|content|entry|hentry|main|page|pagination|post|text|blog|story`),
-	regexp.MustCompile(`(?i)combx|comment|com-|contact|foot|footer|footnote|masthead|media|meta|outbrain|promo|related|scroll|shoutbox|sidebar|sponsor|shopping|tags|tool|widget`),
+	regexp.MustCompile(`(?i)combx|comment|com-|contact|foot|footer|footnote|masthead|media|meta|outbrain|promo|related|scroll|shoutbox|sidebar|sponsor|shopping|tags|tool|widget|subscribe`),
 	cascadia.MustCompile(`[itemprop="articleBody"]`),
 }
 
