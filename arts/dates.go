@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
+	"time"
 )
 
 type dateCandidate struct {
@@ -211,6 +212,8 @@ func datesFromMeta(root *html.Node) (fuzzytime.DateTime, fuzzytime.DateTime) {
 // express
 // <time itemprop="datePublished" datetime="2013-05-05T21:35:22" class="published-date">
 
+// TODO: (eg newsquest sites)
+// <span data-format="article-display" data-show-date="always" data-show-time="today-only" data-timestamp="1461211200" itemprop="datePublished" class="timestamp formatTimeStamp" full-date="20.04.2016">20 mins ago</span>
 //
 //
 //
@@ -259,7 +262,23 @@ func grabDates(root *html.Node, artURL *url.URL,
 				txt = getTextContent(node)
 			}
 		default:
-			txt = getTextContent(node)
+			// check for obvious machine-readable timestamps
+			foo := getAttr(node, "data-timestamp")
+			if foo != "" {
+				i, err := strconv.ParseInt(foo, 10, 64)
+				if err == nil {
+					tm := time.Unix(i, 0).UTC()
+					if tm.Year() < 10000 {
+						// OK, looks sensible(ish). We'll use it.
+						// Cheesy hack - pass it on as text for re-parsing!
+						txt = tm.Format(time.RFC3339)
+					}
+					// else probable javascript timestamp TODO: divide by 1000 and try again!
+				}
+			}
+			if txt == "" {
+				txt = getTextContent(node)
+			}
 		}
 
 		if len(txt) < 6 || len(txt) > 150 {
