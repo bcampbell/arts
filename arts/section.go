@@ -13,9 +13,16 @@ import (
 
 // eg <meta property="article:section" content="Politics" />
 var sectionSels = struct {
-	meta cascadia.Selector
+	title         cascadia.Selector
+	titleSplitter *regexp.Regexp
+	meta          cascadia.Selector
+	whiteList     *regexp.Regexp
 }{
+	cascadia.MustCompile(`head title`),
+	regexp.MustCompile(`\s*[|]\s*`),
 	cascadia.MustCompile(`head meta[property="article:section"], head meta[name="Section"], head meta[property="og:article:section"]`),
+	// cheesy-arse list of liekly-looking section headings. Could be vastly improved...
+	regexp.MustCompile(`(?i)news|business|sport|opinion|comment|tech|technology|science|football|culture|lifestyle|politics|entertainment|scotland|ireland|times2|law|education|tv|films|travel|money|food|fashion|health|cars`),
 }
 
 // evil special-case hacks for various specific sites
@@ -67,6 +74,11 @@ func grabSection(root *html.Node, u *url.URL) string {
 		}
 	}
 
+	// last-ditch attempt - look in <title>
+	if section == "" {
+		section = sectionFromTitle(root)
+	}
+
 	return section
 }
 
@@ -91,4 +103,35 @@ func sectionFromElement(root *html.Node, sel cascadia.Selector) string {
 		return ""
 	}
 	return compressSpace(getTextContent(el))
+}
+
+// look in page title for section hints
+// eg:
+// <title>Trump 'accused of treason' after urging Russia to hack Hillary Clinton's email | US elections | News | The Independent</title>
+// <title>Scientists create the first drug to halt Alzheimer’s | News | The Times &amp; The Sunday Times</title>
+// TODO: improve section whitelist!
+func sectionFromTitle(root *html.Node) string {
+	el := sectionSels.title.MatchFirst(root)
+	if el == nil {
+		return ""
+	}
+
+	title := getTextContent(el)
+
+	parts := sectionSels.titleSplitter.Split(title, -1)
+
+	// trim off first and last parts - always headline or publication, never section
+	if len(parts) <= 2 {
+		return ""
+	}
+	parts = parts[1 : len(parts)-1]
+
+	found := []string{}
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if sectionSels.whiteList.MatchString(part) {
+			found = append(found, part)
+		}
+	}
+	return strings.Join(found, ", ")
 }

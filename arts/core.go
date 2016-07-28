@@ -4,19 +4,18 @@ package arts
 
 import (
 	"bytes"
+	"code.google.com/p/go-charset/charset"
+	_ "code.google.com/p/go-charset/data"
 	"errors"
 	"fmt"
 	"golang.org/x/net/html"
 	"io"
-	"regexp"
-	"strings"
-	//	"fmt"
-	"code.google.com/p/go-charset/charset"
-	_ "code.google.com/p/go-charset/data"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strings"
 )
 
 type Author struct {
