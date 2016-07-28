@@ -24,11 +24,11 @@ var cruftPats = struct {
 	cruftIndicative         *regexp.Regexp
 	shareLinkIndicative     []string
 }{
-	cascadia.MustCompile("ul,div"),
+	cascadia.MustCompile("ul,div,section,aside"),
 	cascadia.MustCompile("a"),
 	regexp.MustCompile(`(?i)social|share|sharing|sharetools`),
 	regexp.MustCompile(`(?i)twitter|google|gplus|googleplus|facebook|linkedin|whatsapp`),
-	regexp.MustCompile(`(?i)\b(?:combx|comment|community|departments|disqus|livefyre|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|promo|rhs|sidebar|sponsor|shopping|tweet|twitter|facebook|trending)\b`),
+	regexp.MustCompile(`(?i)\b(?:combx|comment|community|departments|disqus|livefyre|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|promo|rhs|sidebar|sponsor|shopping|tweet|twitter|facebook|trending|relatedarticles)\b`),
 	[]string{"plus.google.com", "facebook.com", "twitter.com", "pinterest.com", "linkedin.com", "mailto:", "whatsapp:"},
 }
 
