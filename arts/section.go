@@ -22,7 +22,7 @@ var sectionSels = struct {
 	regexp.MustCompile(`\s*[|]\s*`),
 	cascadia.MustCompile(`head meta[property="article:section"], head meta[name="Section"], head meta[property="og:article:section"]`),
 	// cheesy-arse list of liekly-looking section headings. Could be vastly improved...
-	regexp.MustCompile(`(?i)news|business|sport|opinion|comment|tech|technology|science|football|culture|lifestyle|politics|entertainment|scotland|ireland|times2|law|education|tv|films|travel|money|food|fashion|health|cars`),
+	regexp.MustCompile(`(?i)news|business|sport|opinion|comment|tech|technology|science|football|culture|lifestyle|politics|entertainment|scotland|ireland|wales|times2|law|education|tv|films|travel|money|food|fashion|health|cars|world|register|obituary|obituaries`),
 }
 
 // evil special-case hacks for various specific sites
