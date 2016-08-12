@@ -1,0 +1,17 @@
+# Notes - stuff that needs some thought and more work
+
+
+## improve 'read more' cruft removal
+
+eg:
+
+https://www.thesun.co.uk/archives/politics/1138354/mp-uses-limerick-to-mock-hereditary-peers-return-to-the-house-of-lords-after-an-election-with-just-three-voters/
+
+Has a 'read more' block embedded in it, with a bunch of links to other articles.
+
+### Plan
+
+Look for indicative text ("read more", "related articles" etc), and disregard
+any links which immediately follow.
+
+
