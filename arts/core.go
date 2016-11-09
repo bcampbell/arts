@@ -4,11 +4,10 @@ package arts
 
 import (
 	"bytes"
-	"code.google.com/p/go-charset/charset"
-	_ "code.google.com/p/go-charset/data"
 	"errors"
 	"fmt"
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/charset"
 	"io"
 	"io/ioutil"
 	"log"
@@ -135,7 +134,7 @@ func ParseHTML(rawHTML []byte) (*html.Node, error) {
 	if enc != "utf-8" {
 		// we'll be translating to utf-8
 		var err error
-		r, err = charset.NewReader(enc, r)
+		r, err = charset.NewReaderLabel(enc, r)
 		if err != nil {
 			return nil, err
 		}

@@ -4,7 +4,7 @@ package arts
 // (ie <meta name="keywords"...>, rel-tag etc...)
 
 import (
-	"code.google.com/p/cascadia"
+	"github.com/andybalholm/cascadia"
 	"golang.org/x/net/html"
 	//	"github.com/PuerkitoBio/purell"
 	"net/url"

@@ -11,7 +11,7 @@ package arts
 // this version is designed to be used on a bare parsed html.Node tree.
 
 import (
-	"code.google.com/p/cascadia"
+	"github.com/andybalholm/cascadia"
 	"fmt"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"

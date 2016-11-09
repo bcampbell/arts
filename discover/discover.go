@@ -11,7 +11,7 @@ package discover
 //   logging
 
 import (
-	"code.google.com/p/cascadia"
+	"github.com/andybalholm/cascadia"
 	"golang.org/x/net/html"
 	"errors"
 	"fmt"

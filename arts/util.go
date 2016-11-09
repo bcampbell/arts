@@ -4,7 +4,7 @@ package arts
 // Some of this might justify a separate package...
 
 import (
-	"code.google.com/p/cascadia"
+	"github.com/andybalholm/cascadia"
 	"fmt"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"

@@ -4,7 +4,7 @@ package arts
 // (ie canonical, shortlink etc...)
 
 import (
-	"code.google.com/p/cascadia"
+	"github.com/andybalholm/cascadia"
 	"fmt"
 	"github.com/PuerkitoBio/purell"
 	"golang.org/x/net/html"

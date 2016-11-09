@@ -1,7 +1,7 @@
 package arts
 
 import (
-	"code.google.com/p/cascadia"
+	"github.com/andybalholm/cascadia"
 	"errors"
 	"fmt"
 	"golang.org/x/net/html"

@@ -5,7 +5,7 @@ import (
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 	//"github.com/matrixik/goquery"
-	"code.google.com/p/cascadia"
+	"github.com/andybalholm/cascadia"
 	"github.com/bcampbell/arts/arts/byline"
 	"regexp"
 	"sort"

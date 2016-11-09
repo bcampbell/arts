@@ -4,7 +4,7 @@ import (
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 	//"github.com/matrixik/goquery"
-	"code.google.com/p/cascadia"
+	"github.com/andybalholm/cascadia"
 	"regexp"
 	//	"strings"
 	//	"errors"
