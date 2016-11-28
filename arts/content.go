@@ -11,8 +11,8 @@ package arts
 // this version is designed to be used on a bare parsed html.Node tree.
 
 import (
-	"github.com/andybalholm/cascadia"
 	"fmt"
+	"github.com/andybalholm/cascadia"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 	"log"
@@ -445,9 +445,18 @@ func zapConditionally(contentNodes []*html.Node, tagSel string, candidates candi
 // - trim whitespace
 // - remove non-essential attrs (TODO: still some more to do on this)
 // - TODO make links absolute
-func sanitiseContent(contentNodes []*html.Node) {
+func sanitiseContent(contentNodes []*html.Node) []*html.Node {
 
 	for _, node := range contentNodes {
 		tidyNode(node)
 	}
+
+	// return only nodes with some remaining content
+	out := make([]*html.Node, 0, len(contentNodes))
+	for _, node := range contentNodes {
+		if node.FirstChild != nil {
+			out = append(out, node)
+		}
+	}
+	return out
 }

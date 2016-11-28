@@ -170,7 +170,9 @@ func tidyNode(node *html.Node) {
 	for _, n := range elementSel.MatchAll(node) {
 		allowedAttrs, whiteListed := elementWhitelist[n.DataAtom]
 		if !whiteListed {
-			n.Parent.RemoveChild(n)
+			if n.Parent != nil {
+				n.Parent.RemoveChild(n)
+			}
 			continue
 		}
 		filterAttrs(n, func(attr *html.Attribute) bool {

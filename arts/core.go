@@ -203,7 +203,7 @@ func ExtractFromTree(root *html.Node, artURL string) (*Article, error) {
 		}
 	}
 	removeCruft(contentNodes, contentScores)
-	sanitiseContent(contentNodes)
+	contentNodes = sanitiseContent(contentNodes)
 
 	var out bytes.Buffer
 	for _, node := range contentNodes {
