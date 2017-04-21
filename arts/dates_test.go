@@ -14,6 +14,8 @@ func TestDateFromURL(t *testing.T) {
 	}{
 		{"http://www.example.com/posts/2014/04/17/moon-made-of-cheese",
 			"2014-04-17"},
+        { "http://www.itv.com/news/2017-04-21/may-under-pressure-to-outline-pension-plans-after-making-foreign-aid-pledge/",
+        "2017-04-21"},
 	}
 	// go for it.
 	for _, dat := range testData {

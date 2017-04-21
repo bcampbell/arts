@@ -118,6 +118,7 @@ var datePats = struct {
 	// urlDateFmts
 	[]*regexp.Regexp{
 		regexp.MustCompile(`/(?P<year>\d{4})/(?P<month>\d{2})/(?P<day>\d{2})/`),
+		regexp.MustCompile(`/(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})/`),
 		regexp.MustCompile(`/(?P<year>\d{4})/(?P<month>\d{2})/`),
 		//		regexp.MustCompile(`[^0-9](?P<year>\d{4})-(?P<month>\d{1,2})-(?P<day>\d{1,2})[^0-9]`),
 	},
