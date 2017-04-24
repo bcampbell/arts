@@ -123,11 +123,11 @@ var datePats = struct {
 		//		regexp.MustCompile(`[^0-9](?P<year>\d{4})-(?P<month>\d{1,2})-(?P<day>\d{1,2})[^0-9]`),
 	},
 	// genericClasses
-	regexp.MustCompile(`(?i)updated|date|time|fecha`),
+	regexp.MustCompile(`(?i)\b(updated|date|time|fecha)\b`),
 	// publishedClasses
-	regexp.MustCompile(`(?i)published`),
+	regexp.MustCompile(`(?i)\bpublished\b`),
 	// updatedClasses
-	regexp.MustCompile(`(?i)modified|updated`),
+	regexp.MustCompile(`(?i)\b(modified|updated)\b`),
 }
 
 // dateFromURL looks for an obvious date in the url
