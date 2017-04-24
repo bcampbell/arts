@@ -184,8 +184,8 @@ func ExtractFromTree(root *html.Node, artURL string) (*Article, error) {
 		art.Headline = headline
 	}
 
-	cruftBlocks := findCruft(root, Debug.CruftLogger)
 	contentNodes, contentScores := grabContent(root)
+	cruftBlocks := findCruft(root, contentScores, Debug.CruftLogger)
 	art.Authors = grabAuthors(root, contentNodes, headlineNode, cruftBlocks)
 
 	published, updated := grabDates(root, u, contentNodes, headlineNode, scriptNodes, cruftBlocks)

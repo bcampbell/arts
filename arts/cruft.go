@@ -32,7 +32,7 @@ var cruftPats = struct {
 	[]string{"plus.google.com", "facebook.com", "twitter.com", "pinterest.com", "linkedin.com", "mailto:", "whatsapp:"},
 }
 
-func findCruft(root *html.Node, dbug *log.Logger) []*html.Node {
+func findCruft(root *html.Node, contentNodes candidateMap, dbug *log.Logger) []*html.Node {
 	candidates := candidateList{}
 	// look for likely ul or div blocks
 	for _, el := range cruftPats.shareContainerSel.MatchAll(root) {
@@ -42,19 +42,31 @@ func findCruft(root *html.Node, dbug *log.Logger) []*html.Node {
 		if pat.MatchString(elClass) || pat.MatchString(elID) {
 			c := newStandardCandidate(el, "")
 			c.addPoints(3, "cruft indicative")
+
+			// cruft blocks are unlikely to contain significant content...
+			contentScore := 0.0
+			for n, score := range contentNodes {
+				if contains(el, n) {
+					contentScore += score.total()
+				}
+			}
+			if contentScore > 0 {
+				c.addPoints(-contentScore, "contains content")
+			}
+
 			candidates = append(candidates, c)
 		}
 	}
 
 	candidates.Sort()
 
-	dbug.Printf("cruft blocks: %d candidates\n", len(candidates))
-	for _, c := range candidates {
-		c.dump(dbug)
-	}
+	dbug.Printf("cruft:\n")
 	cruft := []*html.Node{}
 	for _, c := range candidates {
-		cruft = append(cruft, c.node())
+		if c.total() > 0 {
+			cruft = append(cruft, c.node())
+			c.dump(dbug)
+		}
 	}
 
 	social := findSocialMediaShareBlocks(root, dbug)
