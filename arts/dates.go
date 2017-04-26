@@ -517,6 +517,31 @@ func checkEvilSpecialCaseHacks(artURL *url.URL, scriptNodes []*html.Node) fuzzyt
 				break
 			}
 		}
+	} else if artURL.Host == "www.vice.com" {
+		dbug := Debug.DatesLogger
+		// get it from javascript timestamp, eg:
+		// ... "published_at":1493179200000 ...
+
+		dbug.Printf("specialcase www.vice.com check")
+
+		pat := regexp.MustCompile(`"published_at":\s*(\d{8,})`)
+
+		for _, el := range scriptNodes {
+			txt := getTextContent(el)
+			m := pat.FindStringSubmatch(txt)
+			if m == nil {
+				continue
+			}
+			i, err := strconv.ParseInt(m[1], 10, 64)
+			if err != nil {
+				continue
+			}
+			tm := time.Unix(i/1000, 0)
+			published.SetYear(tm.Year())
+			published.SetMonth(int(tm.Month()))
+			published.SetDay(tm.Day())
+			break
+		}
 	}
 
 	return published
