@@ -235,7 +235,7 @@ func grabDates(root *html.Node, artURL *url.URL,
 		return metaPublished, metaUpdated
 	}
 
-	evilPublished := checkEvilSpecialCaseHacks(artURL, scriptNodes)
+	evilPublished := checkEvilSpecialCaseHacks(root, artURL, scriptNodes)
 	// get a list of elements between headline and content
 	betwixt := []*html.Node{}
 	if headlineNode != nil && len(contentNodes) > 0 {
@@ -496,7 +496,7 @@ func grabDates(root *html.Node, artURL *url.URL,
 }
 
 // EVIL SPECIALCASE HACK ALERT
-func checkEvilSpecialCaseHacks(artURL *url.URL, scriptNodes []*html.Node) fuzzytime.DateTime {
+func checkEvilSpecialCaseHacks(root *html.Node, artURL *url.URL, scriptNodes []*html.Node) fuzzytime.DateTime {
 	published := fuzzytime.DateTime{}
 
 	if artURL.Host == "www.buzzfeed.com" {
@@ -541,6 +541,12 @@ func checkEvilSpecialCaseHacks(artURL *url.URL, scriptNodes []*html.Node) fuzzyt
 			published.SetMonth(int(tm.Month()))
 			published.SetDay(tm.Day())
 			break
+		}
+	} else if artURL.Host == "elections.newstatesman.com" {
+		// minisite for UK 2017 general election - probably remove this in future
+		foo := cascadia.MustCompile(".entry-header .thedate").MatchAll(root)
+		if len(foo) == 1 {
+			published, _, _ = fuzzytime.Extract(getTextContent(foo[0]))
 		}
 	}
 
