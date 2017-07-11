@@ -193,11 +193,16 @@ func openHttp(artURL string) (io.ReadCloser, error) {
 
 	client := &http.Client{}
 
-	request, err := http.NewRequest("GET", artURL, nil)
+	req, err := http.NewRequest("GET", artURL, nil)
 	if err != nil {
 		return nil, err
 	}
-	response, err := client.Do(request)
+
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("User-Agent", `Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:28.0) Gecko/20100101 Firefox/28.0`)
+	//	req.Header.Set("User-Agent", "curl/7.47.0")
+
+	response, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
