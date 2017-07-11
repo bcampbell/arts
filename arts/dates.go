@@ -548,7 +548,19 @@ func checkEvilSpecialCaseHacks(root *html.Node, artURL *url.URL, scriptNodes []*
 		if len(foo) == 1 {
 			published, _, _ = fuzzytime.Extract(getTextContent(foo[0]))
 		}
+	} else if artURL.Host == "www.tvnz.co.nz" {
+		// appalling:
+		// eg <time class="red-square livestamp" data-time="1499751783314"></time>
+		foo := cascadia.MustCompile("time.livestamp").MatchAll(root)
+		if len(foo) == 1 {
+			i, err := strconv.ParseInt(getAttr(foo[0], "data-time"), 10, 64)
+			if err == nil {
+				tm := time.Unix(i/1000, 0)
+				published.SetYear(tm.Year())
+				published.SetMonth(int(tm.Month()))
+				published.SetDay(tm.Day())
+			}
+		}
 	}
-
 	return published
 }
