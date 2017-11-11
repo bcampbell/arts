@@ -9,6 +9,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"errors"
 	"flag"
 	"fmt"
@@ -21,6 +22,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime/pprof"
 	"strings"
 )
@@ -100,7 +102,7 @@ func main() {
 	case "file", "":
 
 		foo := strings.ToLower(u.Path)
-		if strings.HasSuffix(foo, ".warc") {
+		if strings.HasSuffix(foo, ".warc") || strings.HasSuffix(foo, ".warc.gz") {
 			// it's a warc file
 			rawHTML, artURL, err = fromWARC(u.Path)
 			if err != nil {
@@ -154,11 +156,23 @@ func main() {
 // fetch html from a WARC file
 // returns: html, url, err
 func fromWARC(filename string) ([]byte, string, error) {
-	in, err := os.Open(filename)
+	f, err := os.Open(filename)
 	if err != nil {
 		return nil, "", err
 	}
-	defer in.Close()
+	defer f.Close()
+
+	var in io.Reader
+	if filepath.Ext(filename) == ".gz" {
+		gin, err := gzip.NewReader(f)
+		if err != nil {
+			return nil, "", err
+		}
+		defer gin.Close()
+		in = gin
+	} else {
+		in = f
+	}
 
 	warcReader := warc.NewReader(in)
 	for {
