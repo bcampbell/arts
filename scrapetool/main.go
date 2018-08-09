@@ -14,7 +14,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/bcampbell/arts/arts"
-	"github.com/bcampbell/warc/warc"
+	"github.com/bcampbell/warc"
 	"golang.org/x/net/html"
 	"io"
 	"io/ioutil"
