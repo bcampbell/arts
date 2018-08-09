@@ -76,6 +76,8 @@ var dateSels = struct {
 	hatomUpdated    cascadia.Selector
 	rdfaPublished   cascadia.Selector
 	rdfaUpdated     cascadia.Selector
+	schemaPublished cascadia.Selector
+	schemaUpdated   cascadia.Selector
 }{
 	cascadia.MustCompile(`time, .published, .updated`),
 
@@ -102,6 +104,9 @@ var dateSels = struct {
 	cascadia.MustCompile(`hentry .updated`),
 	cascadia.MustCompile(`[property="dc:issued"],[property="dc:created"]`),
 	cascadia.MustCompile(`[property="dc:updated"]`),
+	//cascadia.MustCompile(`[itemprop="datePublished"],[itemprop="dateCreated"]`),
+	cascadia.MustCompile(`[itemprop="datePublished"]`),
+	cascadia.MustCompile(`[itemprop="dateModified"]`),
 }
 
 var datePats = struct {
@@ -335,6 +340,14 @@ func grabDates(root *html.Node, artURL *url.URL,
 		// TEST: indicative text ("posted:" etc...)
 		if datePats.updatedIndicativeText.MatchString(txt) {
 			updatedC.addPoints(1, "indicative text")
+		}
+
+		// TEST: schema.org date markup
+		if dateSels.schemaPublished.Match(node) {
+			publishedC.addPoints(2, "schema.org datePublished")
+		}
+		if dateSels.schemaUpdated.Match(node) {
+			publishedC.addPoints(2, "schema.org dateModified")
 		}
 
 		// TEST: hAtom date markup
