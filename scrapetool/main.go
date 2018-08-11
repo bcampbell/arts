@@ -184,7 +184,8 @@ func fromWARC(filename string) ([]byte, string, error) {
 		if rec.Header.Get("Warc-Type") != "response" {
 			continue
 		}
-		reqURL := rec.Header.Get("Warc-Target-Uri")
+		//reqURL := rec.Header.Get("Warc-Target-Uri")
+		reqURL := rec.TargetURI() // get "Warc-Target-Uri", stripping any angle-brackets
 		// parse response, grab raw html
 		rdr := bufio.NewReader(bytes.NewReader(rec.Block))
 		response, err := http.ReadResponse(rdr, nil)
