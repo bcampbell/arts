@@ -323,8 +323,8 @@ func grabDates(root *html.Node, artURL *url.URL,
 			}
 		}
 		if dt.Date.Empty() {
-			publishedC.addPoints(-0.5, "no date")
-			updatedC.addPoints(-0.5, "no date")
+			publishedC.addPoints(-2, "no date")
+			updatedC.addPoints(-2, "no date")
 		}
 
 		// TEST: is machine readable?
@@ -405,7 +405,7 @@ func grabDates(root *html.Node, artURL *url.URL,
 			}
 		}
 
-		// TEST: within a crfut block? (comment, social link, whatever)
+		// TEST: within a cruft block? (comment, social link, whatever)
 		for _, cruftBlock := range cruftBlocks {
 			if contains(cruftBlock, node) {
 				desc := fmt.Sprintf("inside cruft (%s)", describeNode(cruftBlock))
