@@ -4,8 +4,8 @@ package arts
 // Some of this might justify a separate package...
 
 import (
-	"github.com/andybalholm/cascadia"
 	"fmt"
+	"github.com/andybalholm/cascadia"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 	"golang.org/x/text/unicode/norm"
@@ -141,11 +141,11 @@ func getTextContent(n *html.Node) string {
 // getLinkDensity calculates the ratio of link text to overall text in a node.
 // 0 means no link text, 1 means everything is link text
 func getLinkDensity(n *html.Node) float64 {
-	textLength := len(getTextContent(n))
+	textLength := len(compressSpace(getTextContent(n)))
 	linkLength := 0
 	linkSel := cascadia.MustCompile("a")
 	for _, a := range linkSel.MatchAll(n) {
-		linkLength += len(getTextContent(a))
+		linkLength += len(compressSpace(getTextContent(a)))
 	}
 
 	return float64(linkLength) / float64(textLength)
