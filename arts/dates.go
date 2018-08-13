@@ -92,7 +92,8 @@ var dateSels = struct {
 		`meta[name="dcterms.created"], ` +
 		`meta[name="DCTERMS.date"], ` +
 		`meta[name="dcterms.date"], ` +
-		`meta[name="publish_date"]`),
+		`meta[name="publish_date"],` +
+		`meta[name="published_time_telegram"]`),
 	cascadia.MustCompile(`meta[property="article:modified_time"], ` +
 		`meta[name="DCTERMS.modified"], ` +
 		`meta[name="dashboard_updated_date"], ` +
@@ -298,6 +299,10 @@ func grabDates(root *html.Node, artURL *url.URL,
 			continue // no data, (or there was an error)
 		}
 
+		if dt.Date.Empty() {
+			continue // no date part (time only)
+		}
+
 		//dbug.Printf("considering %s (%s) '%f'\n", describeNode(node), dt.String(), dateProportion)
 		publishedC := newDateCandidate(node, txt, dt)
 		updatedC := newDateCandidate(node, txt, dt)
@@ -321,10 +326,6 @@ func grabDates(root *html.Node, artURL *url.URL,
 				publishedC.addPoints(0.75, "datetime")
 				updatedC.addPoints(0.75, "datetime")
 			}
-		}
-		if dt.Date.Empty() {
-			publishedC.addPoints(-2, "no date")
-			updatedC.addPoints(-2, "no date")
 		}
 
 		// TEST: is machine readable?
