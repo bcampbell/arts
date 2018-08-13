@@ -124,9 +124,14 @@ func TestJaccardWordCompare(t *testing.T) {
 		{"half of a match", "half of wibble pibble", 0.333333},
 		{"sub set of words", "should match a sub set of words even if surrounded", 0.4},
 		{"most words matching but not", "most words matching but not all", 0.83333},
+		{"Торт настолько вкусный и влажный.", "Торт настолько вкусный и влажный.", 1},
+		{"", "", 1},
 	}
 	for _, dat := range testData {
 		got := jaccardWordCompare(dat.haystack, dat.needle)
+		if math.IsNaN(got) {
+			t.Errorf("jaccardWordCompare('%s','%s') = %v ", dat.haystack, dat.needle, got)
+		}
 		if math.Abs(dat.expected-got) > 0.001 {
 			t.Errorf("jaccardWordCompare('%s','%s') = %v (expected %v)", dat.haystack, dat.needle, got, dat.expected)
 		}

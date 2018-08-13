@@ -1,9 +1,9 @@
 package arts
 
 import (
-	"github.com/andybalholm/cascadia"
 	"errors"
 	"fmt"
+	"github.com/andybalholm/cascadia"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 	"regexp"
@@ -41,7 +41,7 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 	var cookedTitle string
 	t := headlinePats.titleSel.MatchFirst(root)
 	if t != nil {
-		cookedTitle = toAlphanumeric(getTextContent(t))
+		cookedTitle = normaliseText(getTextContent(t))
 	}
 
 	// check for any interesting meta tags (og:title etc...)
@@ -53,7 +53,7 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 	}
 	metaTitles := []metaTitle{}
 	for _, metaTitleNode := range headlinePats.metaTitlesSel.MatchAll(root) {
-		cooked := toAlphanumeric(getAttr(metaTitleNode, "content"))
+		cooked := normaliseText(getAttr(metaTitleNode, "content"))
 		metaTitles = append(metaTitles, metaTitle{cooked, metaTitleNode})
 	}
 
@@ -68,9 +68,7 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 		if len(txt) < 3 {
 			continue // too short
 		}
-
-		cookedTxt := toAlphanumeric(txt)
-
+		cookedTxt := normaliseText(txt)
 		c := newStandardCandidate(el, txt)
 
 		// TEST: schema.org headline
@@ -120,7 +118,7 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 
 				// TEST: like the slug?
 				if cookedSlug != "" {
-					value := jaccardWordCompare(cookedTxt, cookedSlug)
+					value := jaccardWordCompare(toAlphanumeric(txt), cookedSlug)
 					c.addPoints((value*4)-1, "score against slug")
 				}
 			}

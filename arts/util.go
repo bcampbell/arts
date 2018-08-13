@@ -34,8 +34,17 @@ func compressSpace(s string) string {
 	return s
 }
 
+// prep text for comparisons, in a language-neutral way
+func normaliseText(txt string) string {
+	txt = norm.NFKD.String(txt)
+	txt = strings.ToLower(txt)
+	txt = compressSpace(txt)
+	return txt
+}
+
 // toAlphanumeric converts a utf8 string into plain ascii, alphanumeric only.
 // It tries to replace latin-alphabet accented characters with the plain-ascii bases.
+// NOTE: will return empty string for non-latin text
 func toAlphanumeric(txt string) string {
 	// convert to NFKD form
 	// eg, from wikipedia:
@@ -207,11 +216,8 @@ func prevNode(n *html.Node) *html.Node {
 	return n.Parent
 }
 
-var wordSplitPat *regexp.Regexp = regexp.MustCompile(`\b(\w+)\b`)
-
 func wordCount(s string) int {
-	m := wordSplitPat.FindAllString(s, -1)
-	return len(m)
+	return len(strings.Fields(s))
 }
 
 // jaccardWordCompare compares strings based on the words they contain
@@ -219,8 +225,8 @@ func wordCount(s string) int {
 // Calculates the Jaccard index on the sets of words each string contains.
 // https://en.wikipedia.org/wiki/Jaccard_index
 func jaccardWordCompare(a string, b string) float64 {
-	aWords := wordSplitPat.FindAllString(a, -1)
-	bWords := wordSplitPat.FindAllString(b, -1)
+	aWords := strings.Fields(a)
+	bWords := strings.Fields(b)
 	lookup := make(map[string]bool)
 	for _, word := range aWords {
 		lookup[word] = true
@@ -238,6 +244,9 @@ func jaccardWordCompare(a string, b string) float64 {
 		lookup[word] = true
 	}
 	unionCnt := float64(len(lookup))
+	if unionCnt == 0 {
+		return 1 // both a and b empty!
+	}
 	return intersectCnt / unionCnt
 }
 
