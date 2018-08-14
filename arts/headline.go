@@ -117,8 +117,9 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 				}
 
 				// TEST: like the slug?
-				if cookedSlug != "" {
-					value := jaccardWordCompare(toAlphanumeric(txt), cookedSlug)
+				alphanumericTxt := toAlphanumeric(txt)
+				if cookedSlug != "" && alphanumericTxt != "" {
+					value := jaccardWordCompare(alphanumericTxt, cookedSlug)
 					c.addPoints((value*4)-1, "score against slug")
 				}
 			}
@@ -126,7 +127,7 @@ func grabHeadline(root *html.Node, art_url string) (string, *html.Node, error) {
 			// TEST: likely-looking meta tags
 			for _, metaTitle := range metaTitles {
 				value := jaccardWordCompare(cookedTxt, metaTitle.cooked)
-				c.addPoints((value*4)-1, fmt.Sprintf("score against %s", describeNode(metaTitle.node)))
+				c.addPoints((value*6)-1, fmt.Sprintf("score against %s", describeNode(metaTitle.node)))
 			}
 		}
 

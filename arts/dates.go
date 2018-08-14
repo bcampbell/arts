@@ -271,10 +271,19 @@ func grabDates(root *html.Node, artURL *url.URL,
 			}
 		default:
 			// check for obvious machine-readable timestamps
-			foo := getAttr(node, "data-timestamp")
+			attrs := []string{"data-time", "data-timestamp"}
+			foo := ""
+			for _, attr := range attrs {
+				foo = getAttr(node, attr)
+				if foo != "" {
+					break
+				}
+			}
 			if foo != "" {
+				// TODO: check for ISO YYYY-MM-DD strings, unix timestamps, javascript timestamps
 				i, err := strconv.ParseInt(foo, 10, 64)
 				if err == nil {
+					// it's an integer...
 					tm := time.Unix(i, 0).UTC()
 					if tm.Year() < 10000 {
 						// OK, looks sensible(ish). We'll use it.
@@ -282,6 +291,8 @@ func grabDates(root *html.Node, artURL *url.URL,
 						txt = tm.Format(time.RFC3339)
 					}
 					// else probable javascript timestamp TODO: divide by 1000 and try again!
+				} else {
+					txt = foo
 				}
 			}
 			if txt == "" {
